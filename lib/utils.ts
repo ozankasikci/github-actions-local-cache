@@ -38,7 +38,7 @@ export function getInputs(): CacheInputs {
 }
 
 export function validateInputs(inputs: CacheInputs): void {
-  if (inputs.uploadChunkSize && inputs.uploadChunkSize <= 0) {
+  if (inputs.uploadChunkSize !== undefined && inputs.uploadChunkSize <= 0) {
     throw new Error('Upload chunk size must be a positive number');
   }
 

@@ -9,14 +9,14 @@ async function run(): Promise<void> {
     validateInputs(inputs);
     logInputs(inputs);
 
-    const options: CacheOptions = {
+    const options = {
       uploadChunkSize: inputs.uploadChunkSize,
       enableCrossOsArchive: inputs.enableCrossOsArchive,
     };
 
     let cacheKey: string | undefined;
     try {
-      cacheKey = await cache.restoreCache(inputs.paths, inputs.primaryKey, inputs.restoreKeys, options);
+      cacheKey = await cache.restoreCache(inputs.paths, inputs.primaryKey, inputs.restoreKeys, options as any);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       core.warning(`Cache restore failed: ${errorMessage}`);
