@@ -1,12 +1,21 @@
+# Dependencies
 node_modules/
-dist/
-*.log
-.DS_Store
-.env
-coverage/
-.nyc_output/
+scripts/node_modules/
+
+# Build artifacts (keep dist/ for GitHub Actions)
 lib/**/*.js
 lib/**/*.d.ts
 lib/**/*.js.map
+
+# Temporary files  
+*.log
+.DS_Store
+.env
 .eslintcache
-scripts/node_modules/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Bundled build folders (exclude but keep final files)
+dist/*-bundle/

@@ -4,7 +4,7 @@
   "description": "A GitHub Action for local caching on runners",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc && ncc build lib/main.js -o dist --source-map --license licenses.txt",
+    "build": "tsc && ncc build dist/main.js -o dist/main-bundle --source-map --license licenses.txt && ncc build dist/post.js -o dist/post-bundle --source-map --license licenses.txt && cp dist/main-bundle/index.js dist/main.js && cp dist/main-bundle/index.js.map dist/main.js.map && cp dist/post-bundle/index.js dist/post.js && cp dist/post-bundle/index.js.map dist/post.js.map",
     "build:ts": "tsc",
     "package": "npm run build",
     "test": "jest",
