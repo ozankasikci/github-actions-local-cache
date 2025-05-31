@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 import * as cache from '@actions/cache';
-import { CacheState, CacheOptions } from './types';
+import { CacheState } from './types';
 
 function getStateFromAction(): CacheState {
   const primaryKey = core.getState('cache-primary-key');
@@ -64,7 +64,7 @@ async function run(): Promise<void> {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      
+
       if (error instanceof Error && error.name === cache.ValidationError.name) {
         throw error;
       } else if (error instanceof Error && error.name === cache.ReserveCacheError.name) {

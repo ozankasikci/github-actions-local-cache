@@ -1,7 +1,6 @@
 import * as core from '@actions/core';
 import * as cache from '@actions/cache';
 import { getInputs, validateInputs, logInputs } from './utils';
-import { CacheOptions } from './types';
 
 async function run(): Promise<void> {
   try {
@@ -16,7 +15,12 @@ async function run(): Promise<void> {
 
     let cacheKey: string | undefined;
     try {
-      cacheKey = await cache.restoreCache(inputs.paths, inputs.primaryKey, inputs.restoreKeys, options as any);
+      cacheKey = await cache.restoreCache(
+        inputs.paths,
+        inputs.primaryKey,
+        inputs.restoreKeys,
+        options as any
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       core.warning(`Cache restore failed: ${errorMessage}`);
