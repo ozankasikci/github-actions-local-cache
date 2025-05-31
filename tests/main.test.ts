@@ -38,11 +38,7 @@ describe('main', () => {
       expect(mockCache.restoreCache).toHaveBeenCalledWith(
         ['node_modules', '.cache'],
         'test-key-123',
-        ['fallback-1', 'fallback-2'],
-        {
-          uploadChunkSize: 1024,
-          enableCrossOsArchive: false,
-        }
+        ['fallback-1', 'fallback-2']
       );
 
       expect(mockCore.info).toHaveBeenCalledWith('Cache restored from key: test-key-123');
@@ -97,11 +93,7 @@ describe('main', () => {
       expect(mockCache.restoreCache).toHaveBeenCalledWith(
         ['node_modules'],
         'test-key',
-        undefined,
-        {
-          uploadChunkSize: undefined,
-          enableCrossOsArchive: false,
-        }
+        undefined
       );
 
       expect(mockCore.saveState).toHaveBeenCalledWith('upload-chunk-size', '');
