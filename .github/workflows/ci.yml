@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linter
+      run: npm run lint
+
+    - name: Run tests
+      run: npm run test:coverage
+
+    - name: Build TypeScript
+      run: npm run build:ts
+
+    - name: Build distribution
+      run: npm run build
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+
+  package-test:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build and package
+      run: npm run all
+
+    - name: Test the action (basic)
+      uses: ./
+      with:
+        path: |
+          node_modules
+          package-lock.json
+        key: test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+        
+    - name: Verify action outputs
+      run: |
+        echo "Cache hit: ${{ steps.cache.outputs.cache-hit }}"
+        echo "Primary key: ${{ steps.cache.outputs.cache-primary-key }}"
+        echo "Matched key: ${{ steps.cache.outputs.cache-matched-key }}"
