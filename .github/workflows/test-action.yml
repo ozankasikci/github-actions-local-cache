@@ -104,10 +104,10 @@ jobs:
       
     - name: Test multiple paths
       id: test-multiple
+      timeout-minutes: 3
       uses: ./
       with:
         path: |
-          node_modules
           package.json
           package-lock.json
         key: test-multiple-${{ github.run_id }}
@@ -122,9 +122,10 @@ jobs:
         
     - name: Test with upload chunk size
       id: test-chunk
+      timeout-minutes: 3
       uses: ./
       with:
-        path: node_modules
+        path: package.json
         key: test-chunk-${{ github.run_id }}
         upload-chunk-size: 1048576
         

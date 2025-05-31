@@ -55,7 +55,12 @@ async function run() {
         };
         let cacheKey;
         try {
+            core.info('Starting cache restore operation...');
+            core.info(`Paths to cache: ${inputs.paths.join(', ')}`);
+            core.info(`Primary key: ${inputs.primaryKey}`);
+            core.info(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
             cacheKey = await cache.restoreCache(inputs.paths, inputs.primaryKey, inputs.restoreKeys, options);
+            core.info('Cache restore operation completed');
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
