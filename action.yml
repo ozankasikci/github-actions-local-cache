@@ -1,4 +1,4 @@
-name: 'Local Cache Action'
+name: 'Local Runner Cache'
 description: 'Cache files and folders locally on the runner for faster builds'
 author: 'Ozan Kaşıkçı'
 branding:
