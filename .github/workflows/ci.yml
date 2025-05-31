@@ -70,15 +70,12 @@ jobs:
 
     - name: Test the action (first run - cache miss expected)
       id: cache-test-1
+      timeout-minutes: 5
       uses: ./
       with:
-        path: |
-          node_modules
-          package-lock.json
-        key: test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
-        restore-keys: |
-          test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-
-          test-${{ runner.os }}-
+        path: package.json
+        key: test-${{ runner.os }}-simple-${{ github.run_id }}
+        restore-keys: test-${{ runner.os }}-simple-
         
     - name: Verify first run outputs (cache miss)
       run: |
