@@ -27,14 +27,13 @@ export const mockChildProcess = {
 // Mock crypto
 export let hashCounter = 0;
 export const mockCrypto = {
-  createHash: jest.fn(() => {
+  createHash: jest.fn().mockImplementation(() => {
     hashCounter++;
-    return {
-      update: jest.fn(() => ({
-        digest: jest.fn(() => `mocked-hash-${hashCounter}`)
-      }))
-    };
-  }) as jest.MockedFunction<any>,
+    const hashObject: any = {};
+    hashObject.update = jest.fn().mockReturnValue(hashObject);
+    hashObject.digest = jest.fn().mockReturnValue(`mocked-hash-${hashCounter}`);
+    return hashObject;
+  }),
 };
 
 // Mock path
