@@ -49,17 +49,13 @@ async function run() {
         const inputs = (0, utils_1.getInputs)();
         (0, utils_1.validateInputs)(inputs);
         (0, utils_1.logInputs)(inputs);
-        const options = {
-            uploadChunkSize: inputs.uploadChunkSize,
-            enableCrossOsArchive: inputs.enableCrossOsArchive,
-        };
         let cacheKey;
         try {
             core.info('Starting cache restore operation...');
             core.info(`Paths to cache: ${inputs.paths.join(', ')}`);
             core.info(`Primary key: ${inputs.primaryKey}`);
             core.info(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
-            cacheKey = await cache.restoreCache(inputs.paths, inputs.primaryKey, inputs.restoreKeys, options);
+            cacheKey = await cache.restoreCache(inputs.paths, inputs.primaryKey, inputs.restoreKeys);
             core.info('Cache restore operation completed');
         }
         catch (error) {
