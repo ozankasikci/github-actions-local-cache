@@ -1,13 +1,13 @@
 import * as core from '@actions/core';
-import * as cache from '@actions/cache';
-import { CacheState } from './types';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
 
-function getStateFromAction(): CacheState {
+function getStateFromAction() {
   const primaryKey = core.getState('cache-primary-key');
   const pathsJson = core.getState('cache-paths');
   const matchedKey = core.getState('cache-matched-key');
-  const uploadChunkSize = core.getState('upload-chunk-size');
-  const enableCrossOsArchive = core.getState('enable-cross-os-archive');
+  const cacheDir = core.getState('cache-dir');
 
   if (!primaryKey) {
     throw new Error('No primary key found in state');
@@ -19,60 +19,87 @@ function getStateFromAction(): CacheState {
 
   let paths: string[];
   try {
-    paths = JSON.parse(pathsJson) as string[];
-  } catch (error) {
-    throw new Error('Failed to parse cache paths from state');
+    paths = JSON.parse(pathsJson);
+  } catch {
+    throw new Error('Invalid cache paths JSON in state');
   }
 
-  if (paths.length === 0) {
-    throw new Error('Cache paths array is empty');
+  if (!Array.isArray(paths) || paths.length === 0) {
+    throw new Error('Cache paths array is empty or invalid');
   }
 
   return {
     primaryKey,
     paths,
     matchedKey,
-    uploadChunkSize,
-    enableCrossOsArchive,
+    cacheDir: cacheDir || path.join(process.env.RUNNER_TEMP || '/tmp', '.local-cache')
   };
 }
 
 async function run(): Promise<void> {
   try {
     const state = getStateFromAction();
+    
+    core.info('Starting local cache save operation...');
+    core.info(`Primary key: ${state.primaryKey}`);
+    core.info(`Matched key: ${state.matchedKey}`);
+    core.info(`Cache directory: ${state.cacheDir}`);
 
+    // Skip saving if we had an exact cache hit
     if (state.matchedKey === state.primaryKey) {
-      core.info(`Cache hit occurred on the primary key ${state.primaryKey}, not saving cache.`);
+      core.info('Exact cache hit occurred, skipping cache save');
       return;
     }
 
-    const options = {
-      uploadChunkSize: state.uploadChunkSize ? parseInt(state.uploadChunkSize, 10) : undefined,
-      enableCrossOsArchive: state.enableCrossOsArchive === 'true',
-    };
+    // Ensure cache directory exists
+    if (!fs.existsSync(state.cacheDir)) {
+      fs.mkdirSync(state.cacheDir, { recursive: true });
+      core.info(`Created cache directory: ${state.cacheDir}`);
+    }
 
-    core.info(`Attempting to save cache with key: ${state.primaryKey}`);
-    core.info(`Cache paths: ${state.paths.join(', ')}`);
-
-    try {
-      const cacheId = await cache.saveCache(state.paths, state.primaryKey, options);
-      if (cacheId !== -1) {
-        core.info(`Cache saved successfully with key: ${state.primaryKey}`);
-        core.info(`Cache ID: ${cacheId}`);
+    // Check which paths exist and can be cached
+    const existingPaths: string[] = [];
+    for (const cachePath of state.paths) {
+      if (fs.existsSync(cachePath)) {
+        existingPaths.push(cachePath);
+        const stats = fs.statSync(cachePath);
+        core.info(`Will cache ${cachePath} (${stats.isDirectory() ? 'directory' : 'file'})`);
       } else {
-        core.warning('Cache save failed - no cache ID returned');
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-
-      if (error instanceof Error && error.name === cache.ValidationError.name) {
-        throw error;
-      } else if (error instanceof Error && error.name === cache.ReserveCacheError.name) {
-        core.info(errorMessage);
-      } else {
-        core.warning(`Cache save failed: ${errorMessage}`);
+        core.warning(`Path does not exist, skipping: ${cachePath}`);
       }
     }
+
+    if (existingPaths.length === 0) {
+      core.info('No existing paths to cache, skipping cache save');
+      return;
+    }
+
+    // Create cache archive
+    const keyHash = crypto.createHash('sha256').update(state.primaryKey).digest('hex');
+    const cacheFile = path.join(state.cacheDir, `${keyHash}.tar.gz`);
+    
+    core.info(`Creating cache archive: ${cacheFile}`);
+    
+    const { exec } = require('child_process');
+    const util = require('util');
+    const execAsync = util.promisify(exec);
+    
+    try {
+      // Create tar.gz archive of the paths
+      const pathsStr = existingPaths.map(p => `"${p}"`).join(' ');
+      const tarCommand = `tar -czf "${cacheFile}" ${pathsStr}`;
+      
+      core.info(`Running: ${tarCommand}`);
+      await execAsync(tarCommand);
+      
+      const stats = fs.statSync(cacheFile);
+      core.info(`Cache saved successfully. File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      core.warning(`Failed to create cache archive: ${errorMessage}`);
+    }
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     core.setFailed(`Post action failed with error: ${errorMessage}`);
