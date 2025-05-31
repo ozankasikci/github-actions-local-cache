@@ -1,205 +1,210 @@
+import { jest } from '@jest/globals';
 import { run } from '../lib/post';
-import { mockCore, mockCache } from './setup';
+import { mockCore, mockFs, mockChildProcess, mockCrypto, resetMocks } from './setup';
+
+// Mock util.promisify
+const mockExecAsync = jest.fn() as jest.MockedFunction<any>;
+jest.mock('util', () => ({
+  promisify: () => mockExecAsync
+}));
 
 describe('post', () => {
-  const defaultState = {
-    'cache-primary-key': 'test-key-123',
-    'cache-paths': JSON.stringify(['node_modules', '.cache']),
-    'cache-matched-key': 'fallback-key',
-    'upload-chunk-size': '1024',
-    'enable-cross-os-archive': 'true',
-  };
-
   beforeEach(() => {
-    mockCore.getState.mockImplementation((key: string) => defaultState[key as keyof typeof defaultState] || '');
+    resetMocks();
+    mockExecAsync.mockReset();
   });
 
   describe('successful cache operations', () => {
     it('should save cache when no exact match occurred', async () => {
-      mockCache.saveCache.mockResolvedValue(42);
+      mockCore.getState.mockImplementation((key: string) => {
+        switch (key) {
+          case 'cache-primary-key': return 'test-key-123';
+          case 'cache-paths': return JSON.stringify(['node_modules', '.cache']);
+          case 'cache-matched-key': return 'fallback-key';
+          case 'cache-dir': return '/tmp/.local-cache';
+          default: return '';
+        }
+      });
+
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return true;
+        if (path === 'node_modules' || path === '.cache') return true;
+        return false;
+      });
+
+      mockFs.statSync.mockImplementation((path: string) => {
+        if (path.includes('.tar.gz')) {
+          return { size: 1024 * 1024 }; // 1MB for tar file
+        }
+        return { isDirectory: () => true };
+      });
+
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
 
       await run();
 
-      expect(mockCache.saveCache).toHaveBeenCalledWith(
-        ['node_modules', '.cache'],
-        'test-key-123',
-        {
-          uploadChunkSize: 1024,
-          enableCrossOsArchive: true,
-        }
-      );
-
-      expect(mockCore.info).toHaveBeenCalledWith('Attempting to save cache with key: test-key-123');
-      expect(mockCore.info).toHaveBeenCalledWith('Cache paths: node_modules, .cache');
-      expect(mockCore.info).toHaveBeenCalledWith('Cache saved successfully with key: test-key-123');
-      expect(mockCore.info).toHaveBeenCalledWith('Cache ID: 42');
+      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache save operation...');
+      expect(mockCore.info).toHaveBeenCalledWith('Will cache node_modules (directory)');
+      expect(mockCore.info).toHaveBeenCalledWith('Will cache .cache (directory)');
+      expect(mockCore.info).toHaveBeenCalledWith('Cache saved successfully. File size: 1.00 MB');
     });
 
     it('should skip saving when exact match occurred', async () => {
       mockCore.getState.mockImplementation((key: string) => {
-        const stateWithExactMatch = {
-          ...defaultState,
-          'cache-matched-key': 'test-key-123', // Same as primary key
-        };
-        return stateWithExactMatch[key as keyof typeof stateWithExactMatch] || '';
-      });
-
-      await run();
-
-      expect(mockCache.saveCache).not.toHaveBeenCalled();
-      expect(mockCore.info).toHaveBeenCalledWith(
-        'Cache hit occurred on the primary key test-key-123, not saving cache.'
-      );
-    });
-
-    it('should handle cache save returning -1', async () => {
-      mockCache.saveCache.mockResolvedValue(-1);
-
-      await run();
-
-      expect(mockCore.warning).toHaveBeenCalledWith('Cache save failed - no cache ID returned');
-    });
-
-    it('should handle options without upload chunk size', async () => {
-      mockCore.getState.mockImplementation((key: string) => {
-        const stateWithoutChunkSize = {
-          ...defaultState,
-          'upload-chunk-size': '',
-        };
-        return stateWithoutChunkSize[key as keyof typeof stateWithoutChunkSize] || '';
-      });
-
-      mockCache.saveCache.mockResolvedValue(42);
-
-      await run();
-
-      expect(mockCache.saveCache).toHaveBeenCalledWith(
-        ['node_modules', '.cache'],
-        'test-key-123',
-        {
-          uploadChunkSize: undefined,
-          enableCrossOsArchive: true,
+        switch (key) {
+          case 'cache-primary-key': return 'test-key-123';
+          case 'cache-paths': return JSON.stringify(['node_modules']);
+          case 'cache-matched-key': return 'test-key-123'; // Exact match
+          case 'cache-dir': return '/tmp/.local-cache';
+          default: return '';
         }
-      );
-    });
-
-    it('should handle cross-OS archive disabled', async () => {
-      mockCore.getState.mockImplementation((key: string) => {
-        const stateWithCrossOsDisabled = {
-          ...defaultState,
-          'enable-cross-os-archive': 'false',
-        };
-        return stateWithCrossOsDisabled[key as keyof typeof stateWithCrossOsDisabled] || '';
       });
-
-      mockCache.saveCache.mockResolvedValue(42);
 
       await run();
 
-      expect(mockCache.saveCache).toHaveBeenCalledWith(
-        ['node_modules', '.cache'],
-        'test-key-123',
-        {
-          uploadChunkSize: 1024,
-          enableCrossOsArchive: false,
+      expect(mockCore.info).toHaveBeenCalledWith('Exact cache hit occurred, skipping cache save');
+      expect(mockExecAsync).not.toHaveBeenCalled();
+    });
+
+    it('should skip saving when no paths exist', async () => {
+      mockCore.getState.mockImplementation((key: string) => {
+        switch (key) {
+          case 'cache-primary-key': return 'test-key-123';
+          case 'cache-paths': return JSON.stringify(['non-existent-path']);
+          case 'cache-matched-key': return '';
+          case 'cache-dir': return '/tmp/.local-cache';
+          default: return '';
         }
-      );
+      });
+
+      mockFs.existsSync.mockImplementation((path: string) => {
+        return path === '/tmp/.local-cache';
+      });
+
+      await run();
+
+      expect(mockCore.warning).toHaveBeenCalledWith('Path does not exist, skipping: non-existent-path');
+      expect(mockCore.info).toHaveBeenCalledWith('No existing paths to cache, skipping cache save');
+      expect(mockExecAsync).not.toHaveBeenCalled();
+    });
+
+    it('should create cache directory if it does not exist', async () => {
+      mockCore.getState.mockImplementation((key: string) => {
+        switch (key) {
+          case 'cache-primary-key': return 'test-key-123';
+          case 'cache-paths': return JSON.stringify(['package.json']);
+          case 'cache-matched-key': return '';
+          case 'cache-dir': return '/tmp/.local-cache';
+          default: return '';
+        }
+      });
+
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return false; // Cache dir doesn't exist
+        if (path === 'package.json') return true;
+        return false;
+      });
+
+      mockFs.statSync.mockReturnValue({
+        isDirectory: () => false,
+        size: 1024
+      });
+
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+
+      await run();
+
+      expect(mockFs.mkdirSync).toHaveBeenCalledWith('/tmp/.local-cache', { recursive: true });
+      expect(mockCore.info).toHaveBeenCalledWith('Created cache directory: /tmp/.local-cache');
     });
   });
 
   describe('error handling', () => {
     it('should handle missing primary key', async () => {
       mockCore.getState.mockImplementation((key: string) => {
-        if (key === 'cache-primary-key') return '';
-        return defaultState[key as keyof typeof defaultState] || '';
+        switch (key) {
+          case 'cache-primary-key': return '';
+          case 'cache-paths': return JSON.stringify(['node_modules']);
+          case 'cache-matched-key': return '';
+          default: return '';
+        }
       });
 
       await run();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        'Post action failed with error: No primary key found in state'
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Post action failed with error: No primary key found in state');
     });
 
     it('should handle missing cache paths', async () => {
       mockCore.getState.mockImplementation((key: string) => {
-        if (key === 'cache-paths') return '';
-        return defaultState[key as keyof typeof defaultState] || '';
+        switch (key) {
+          case 'cache-primary-key': return 'test-key';
+          case 'cache-paths': return '';
+          case 'cache-matched-key': return '';
+          default: return '';
+        }
       });
 
       await run();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        'Post action failed with error: No cache paths found in state'
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Post action failed with error: No cache paths found in state');
     });
 
     it('should handle invalid JSON in cache paths', async () => {
       mockCore.getState.mockImplementation((key: string) => {
-        if (key === 'cache-paths') return 'invalid-json';
-        return defaultState[key as keyof typeof defaultState] || '';
+        switch (key) {
+          case 'cache-primary-key': return 'test-key';
+          case 'cache-paths': return 'invalid-json';
+          case 'cache-matched-key': return '';
+          default: return '';
+        }
       });
 
       await run();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        'Post action failed with error: Failed to parse cache paths from state'
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Post action failed with error: Invalid cache paths JSON in state');
     });
 
     it('should handle empty cache paths array', async () => {
       mockCore.getState.mockImplementation((key: string) => {
-        if (key === 'cache-paths') return '[]';
-        return defaultState[key as keyof typeof defaultState] || '';
+        switch (key) {
+          case 'cache-primary-key': return 'test-key';
+          case 'cache-paths': return JSON.stringify([]);
+          case 'cache-matched-key': return '';
+          default: return '';
+        }
       });
 
       await run();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        'Post action failed with error: Cache paths array is empty'
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Post action failed with error: Cache paths array is empty or invalid');
     });
 
-    it('should re-throw ValidationError from cache save', async () => {
-      const error = new Error('Invalid cache data');
-      error.name = 'ValidationError';
-      mockCache.saveCache.mockRejectedValue(error);
+    it('should handle tar command errors gracefully', async () => {
+      mockCore.getState.mockImplementation((key: string) => {
+        switch (key) {
+          case 'cache-primary-key': return 'test-key-123';
+          case 'cache-paths': return JSON.stringify(['package.json']);
+          case 'cache-matched-key': return '';
+          case 'cache-dir': return '/tmp/.local-cache';
+          default: return '';
+        }
+      });
 
-      // ValidationError should be re-thrown and caught by the outer try-catch
-      await run();
-      
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        'Post action failed with error: Invalid cache data'
-      );
-    });
+      mockFs.existsSync.mockImplementation((path: string) => {
+        return path === '/tmp/.local-cache' || path === 'package.json';
+      });
 
-    it('should handle ReserveCacheError from cache save', async () => {
-      const error = new Error('Cache already exists');
-      error.name = 'ReserveCacheError';
-      mockCache.saveCache.mockRejectedValue(error);
+      mockFs.statSync.mockReturnValue({
+        isDirectory: () => false,
+        size: 1024
+      });
 
-      await run();
-
-      expect(mockCore.info).toHaveBeenCalledWith('Cache already exists');
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
-    });
-
-    it('should handle generic cache save errors', async () => {
-      const error = new Error('Network error');
-      mockCache.saveCache.mockRejectedValue(error);
+      mockExecAsync.mockRejectedValue(new Error('tar command failed'));
 
       await run();
 
-      expect(mockCore.warning).toHaveBeenCalledWith('Cache save failed: Network error');
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
-    });
-
-    it('should handle non-Error exceptions in cache save', async () => {
-      mockCache.saveCache.mockRejectedValue('String error');
-
-      await run();
-
-      expect(mockCore.warning).toHaveBeenCalledWith('Cache save failed: Unknown error occurred');
+      expect(mockCore.warning).toHaveBeenCalledWith('Failed to create cache archive: tar command failed');
     });
 
     it('should handle non-Error exceptions in main flow', async () => {
@@ -213,53 +218,35 @@ describe('post', () => {
     });
   });
 
-  describe('state parsing', () => {
-    it('should correctly parse upload chunk size as number', async () => {
+  describe('cache file handling', () => {
+    it('should handle different file types correctly', async () => {
       mockCore.getState.mockImplementation((key: string) => {
-        const stateWithLargeChunkSize = {
-          ...defaultState,
-          'upload-chunk-size': '2048',
+        switch (key) {
+          case 'cache-primary-key': return 'test-key-123';
+          case 'cache-paths': return JSON.stringify(['package.json', 'node_modules']);
+          case 'cache-matched-key': return '';
+          case 'cache-dir': return '/tmp/.local-cache';
+          default: return '';
+        }
+      });
+
+      mockFs.existsSync.mockImplementation((path: string) => {
+        return path === '/tmp/.local-cache' || path === 'package.json' || path === 'node_modules';
+      });
+
+      mockFs.statSync.mockImplementation((path: string) => {
+        return {
+          isDirectory: () => path === 'node_modules',
+          size: path === 'package.json' ? 1024 : 1024 * 1024
         };
-        return stateWithLargeChunkSize[key as keyof typeof stateWithLargeChunkSize] || '';
       });
 
-      mockCache.saveCache.mockResolvedValue(42);
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
 
       await run();
 
-      expect(mockCache.saveCache).toHaveBeenCalledWith(
-        ['node_modules', '.cache'],
-        'test-key-123',
-        {
-          uploadChunkSize: 2048,
-          enableCrossOsArchive: true,
-        }
-      );
-    });
-
-    it('should handle complex path arrays', async () => {
-      const complexPaths = ['node_modules', '.cache', 'dist/assets', 'build/**/*.js'];
-      mockCore.getState.mockImplementation((key: string) => {
-        if (key === 'cache-paths') return JSON.stringify(complexPaths);
-        return defaultState[key as keyof typeof defaultState] || '';
-      });
-
-      mockCache.saveCache.mockResolvedValue(42);
-
-      await run();
-
-      expect(mockCache.saveCache).toHaveBeenCalledWith(
-        complexPaths,
-        'test-key-123',
-        {
-          uploadChunkSize: 1024,
-          enableCrossOsArchive: true,
-        }
-      );
-
-      expect(mockCore.info).toHaveBeenCalledWith(
-        'Cache paths: node_modules, .cache, dist/assets, build/**/*.js'
-      );
+      expect(mockCore.info).toHaveBeenCalledWith('Will cache package.json (file)');
+      expect(mockCore.info).toHaveBeenCalledWith('Will cache node_modules (directory)');
     });
   });
 });

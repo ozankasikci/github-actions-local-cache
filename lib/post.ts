@@ -3,7 +3,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 
-function getStateFromAction() {
+function getStateFromAction(): {
+  primaryKey: string;
+  paths: string[];
+  matchedKey: string;
+  cacheDir: string;
+} {
   const primaryKey = core.getState('cache-primary-key');
   const pathsJson = core.getState('cache-paths');
   const matchedKey = core.getState('cache-matched-key');
@@ -32,14 +37,14 @@ function getStateFromAction() {
     primaryKey,
     paths,
     matchedKey,
-    cacheDir: cacheDir || path.join(process.env.RUNNER_TEMP || '/tmp', '.local-cache')
+    cacheDir: cacheDir || path.join(process.env.RUNNER_TEMP || '/tmp', '.local-cache'),
   };
 }
 
 async function run(): Promise<void> {
   try {
     const state = getStateFromAction();
-    
+
     core.info('Starting local cache save operation...');
     core.info(`Primary key: ${state.primaryKey}`);
     core.info(`Matched key: ${state.matchedKey}`);
@@ -77,29 +82,27 @@ async function run(): Promise<void> {
     // Create cache archive
     const keyHash = crypto.createHash('sha256').update(state.primaryKey).digest('hex');
     const cacheFile = path.join(state.cacheDir, `${keyHash}.tar.gz`);
-    
+
     core.info(`Creating cache archive: ${cacheFile}`);
-    
+
     const { exec } = require('child_process');
     const util = require('util');
     const execAsync = util.promisify(exec);
-    
+
     try {
       // Create tar.gz archive of the paths
-      const pathsStr = existingPaths.map(p => `"${p}"`).join(' ');
+      const pathsStr = existingPaths.map((p) => `"${p}"`).join(' ');
       const tarCommand = `tar -czf "${cacheFile}" ${pathsStr}`;
-      
+
       core.info(`Running: ${tarCommand}`);
       await execAsync(tarCommand);
-      
+
       const stats = fs.statSync(cacheFile);
       core.info(`Cache saved successfully. File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       core.warning(`Failed to create cache archive: ${errorMessage}`);
     }
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     core.setFailed(`Post action failed with error: ${errorMessage}`);

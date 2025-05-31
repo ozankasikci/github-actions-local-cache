@@ -30,17 +30,17 @@ async function run(): Promise<void> {
     for (const key of keysToTry) {
       const keyHash = crypto.createHash('sha256').update(key).digest('hex');
       const cacheFile = path.join(cacheDir, `${keyHash}.tar.gz`);
-      
+
       if (fs.existsSync(cacheFile)) {
         core.info(`Found local cache file for key: ${key}`);
         matchedKey = key;
         cacheHit = key === inputs.primaryKey;
-        
+
         // Extract cache to restore the files
         const { exec } = require('child_process');
         const util = require('util');
         const execAsync = util.promisify(exec);
-        
+
         try {
           core.info(`Extracting cache from: ${cacheFile}`);
           await execAsync(`tar -xzf "${cacheFile}" -C /`);
@@ -72,7 +72,7 @@ async function run(): Promise<void> {
     core.saveState('upload-chunk-size', inputs.uploadChunkSize?.toString() || '');
     core.saveState('enable-cross-os-archive', inputs.enableCrossOsArchive.toString());
     core.saveState('cache-dir', cacheDir);
-    
+
     core.info('Local cache operation completed successfully');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
