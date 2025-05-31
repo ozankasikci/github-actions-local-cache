@@ -8,25 +8,15 @@ async function run(): Promise<void> {
     validateInputs(inputs);
     logInputs(inputs);
 
-    const options = {
-      uploadChunkSize: inputs.uploadChunkSize,
-      enableCrossOsArchive: inputs.enableCrossOsArchive,
-    };
-
     let cacheKey: string | undefined;
     try {
       core.info('Starting cache restore operation...');
       core.info(`Paths to cache: ${inputs.paths.join(', ')}`);
       core.info(`Primary key: ${inputs.primaryKey}`);
       core.info(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
-      
-      cacheKey = await cache.restoreCache(
-        inputs.paths,
-        inputs.primaryKey,
-        inputs.restoreKeys,
-        options as any
-      );
-      
+
+      cacheKey = await cache.restoreCache(inputs.paths, inputs.primaryKey, inputs.restoreKeys);
+
       core.info('Cache restore operation completed');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
