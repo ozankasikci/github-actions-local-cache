@@ -25,7 +25,7 @@ export const mockChildProcess = {
 };
 
 // Mock crypto
-let hashCounter = 0;
+export let hashCounter = 0;
 export const mockCrypto = {
   createHash: jest.fn(() => {
     hashCounter++;
