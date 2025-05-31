@@ -65,7 +65,7 @@ describe('main', () => {
       console.log('Crypto createHash calls:', mockCrypto.createHash.mock.calls.length);
 
       expect(mockCore.info).toHaveBeenCalledWith('Starting local cache restore operation...');
-      expect(mockCore.info).toHaveBeenCalledWith('No local cache found');
+      expect(mockCore.info).toHaveBeenCalledWith('Created local cache directory: /tmp/.local-cache');
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-hit', 'false');
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-primary-key', 'test-key-123');
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-matched-key', '');
