@@ -31,6 +31,11 @@ describe('main', () => {
     
     // Set up default environment
     process.env.RUNNER_TEMP = '/tmp';
+    
+    // Set up default mocks that work for most tests
+    mockPath.join.mockImplementation((...parts: string[]) => parts.join('/'));
+    mockValidateInputs.mockImplementation(() => {}); // No-op by default
+    mockLogInputs.mockImplementation(() => {}); // No-op by default
   });
 
   describe('successful cache operations', () => {
@@ -43,12 +48,8 @@ describe('main', () => {
         enableCrossOsArchive: false,
       };
       mockGetInputs.mockReturnValue(inputs);
-      // Set up environment
-      process.env.RUNNER_TEMP = '/tmp';
       
-      // Set up mocks
-      mockPath.join.mockImplementation((...parts: string[]) => parts.join('/'));
-      
+      // Set up mocks for cache miss scenario
       mockFs.existsSync.mockImplementation((path: string) => {
         if (path === '/tmp/.local-cache') return false; // Cache dir doesn't exist initially
         return false; // No cache files exist
@@ -58,11 +59,19 @@ describe('main', () => {
       
       await run();
 
+      console.log('All info calls:', mockCore.info.mock.calls.map((call: any) => call[0]));
+      console.log('SetOutput calls:', mockCore.setOutput.mock.calls);
+      console.log('ExistsSync calls:', mockFs.existsSync.mock.calls);
+      console.log('Crypto createHash calls:', mockCrypto.createHash.mock.calls.length);
+
       expect(mockCore.info).toHaveBeenCalledWith('Starting local cache restore operation...');
       expect(mockCore.info).toHaveBeenCalledWith('No local cache found');
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-hit', 'false');
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-primary-key', 'test-key-123');
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-matched-key', '');
+      expect(mockCore.saveState).toHaveBeenCalledWith('cache-primary-key', 'test-key-123');
+      expect(mockCore.saveState).toHaveBeenCalledWith('cache-paths', JSON.stringify(['node_modules', '.cache']));
+      expect(mockCore.saveState).toHaveBeenCalledWith('cache-matched-key', '');
     });
 
     it('should handle cache hit (exact match)', async () => {
@@ -75,10 +84,13 @@ describe('main', () => {
       };
       mockGetInputs.mockReturnValue(inputs);
       
-      // Mock cache file exists for primary key
+      // Mock cache file exists for primary key (first hash will be for primary key)
       mockFs.existsSync.mockImplementation((path: string) => {
-        return path.includes('mocked-hash.tar.gz');
+        if (path === '/tmp/.local-cache') return true; // Cache dir exists
+        if (path.includes('mocked-hash-1.tar.gz')) return true; // Primary key cache file exists
+        return false;
       });
+      
       mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
 
       await run();
@@ -99,17 +111,19 @@ describe('main', () => {
       };
       mockGetInputs.mockReturnValue(inputs);
       
-      // Mock cache file exists only for fallback key
-      let callCount = 0;
-      mockFs.existsSync.mockImplementation(() => {
-        callCount++;
-        return callCount === 2; // Second call (fallback-1) returns true
+      // Mock cache file exists only for second key (fallback-1)
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return true; // Cache dir exists
+        if (path.includes('mocked-hash-2.tar.gz')) return true; // Fallback key cache file exists
+        return false;
       });
+      
       mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
 
       await run();
 
       expect(mockCore.info).toHaveBeenCalledWith('Found local cache file for key: fallback-1');
+      expect(mockCore.info).toHaveBeenCalledWith('Cache restored successfully');
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-hit', 'false'); // Not exact match
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-matched-key', 'fallback-1');
     });
@@ -123,12 +137,20 @@ describe('main', () => {
         enableCrossOsArchive: false,
       };
       mockGetInputs.mockReturnValue(minimalInputs);
-      mockFs.existsSync.mockReturnValue(false);
+      
+      // Set up mocks for cache miss scenario
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return false; // Cache dir doesn't exist initially
+        return false; // No cache files exist
+      });
+      
+      mockFs.mkdirSync.mockReturnValue(undefined);
 
       await run();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-hit', 'false');
       expect(mockCore.saveState).toHaveBeenCalledWith('cache-primary-key', 'test-key');
+      expect(mockCore.saveState).toHaveBeenCalledWith('upload-chunk-size', '');
     });
   });
 
@@ -142,7 +164,14 @@ describe('main', () => {
         enableCrossOsArchive: false,
       };
       mockGetInputs.mockReturnValue(inputs);
-      mockFs.existsSync.mockReturnValue(true);
+      
+      // Mock cache file exists but extraction fails
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return true; // Cache dir exists
+        if (path.includes('mocked-hash-1.tar.gz')) return true; // Cache file exists
+        return false;
+      });
+      
       mockExecAsync.mockRejectedValue(new Error('Extraction failed'));
 
       await run();
@@ -200,7 +229,14 @@ describe('main', () => {
         enableCrossOsArchive: true,
       };
       mockGetInputs.mockReturnValue(inputs);
-      mockFs.existsSync.mockReturnValue(false);
+      
+      // Set up mocks for cache miss scenario
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return false; // Cache dir doesn't exist initially
+        return false; // No cache files exist
+      });
+      
+      mockFs.mkdirSync.mockReturnValue(undefined);
 
       await run();
 
@@ -221,7 +257,14 @@ describe('main', () => {
         enableCrossOsArchive: false,
       };
       mockGetInputs.mockReturnValue(inputs);
-      mockFs.existsSync.mockReturnValue(false);
+      
+      // Set up mocks for cache miss scenario
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return false; // Cache dir doesn't exist initially
+        return false; // No cache files exist
+      });
+      
+      mockFs.mkdirSync.mockReturnValue(undefined);
 
       await run();
 
