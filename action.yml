@@ -1,5 +1,5 @@
 name: 'Local Runner Cache'
-description: 'Cache files and folders locally on the runner for faster builds'
+description: 'Cache files and folders locally on the runner filesystem for faster builds'
 author: 'Ozan Kaşıkçı'
 branding:
   icon: 'archive'

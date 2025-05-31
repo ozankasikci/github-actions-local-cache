@@ -1,7 +1,7 @@
 {
   "name": "github-actions-local-cache",
   "version": "1.0.0",
-  "description": "A GitHub Action for local caching on runners",
+  "description": "A GitHub Action for caching files locally on the runner filesystem",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc && ncc build dist/main.js -o dist/main-bundle --license licenses.txt && ncc build dist/post.js -o dist/post-bundle --license licenses.txt && cp dist/main-bundle/index.js dist/main.js && cp dist/post-bundle/index.js dist/post.js",
@@ -30,7 +30,6 @@
   "author": "Ozan Kaşıkçı <ozan@kasikci.io>",
   "license": "MIT",
   "dependencies": {
-    "@actions/cache": "^3.2.4",
     "@actions/core": "^1.10.1",
     "@actions/glob": "^0.4.0"
   },
