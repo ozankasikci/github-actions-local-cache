@@ -26,6 +26,8 @@ describe('post', () => {
         }
       });
 
+      let tarCommandExecuted = false;
+      
       mockFs.existsSync.mockImplementation((path: string) => {
         if (path === '/tmp/.local-cache') return true;
         if (path === 'node_modules' || path === '.cache') return true;
@@ -39,7 +41,10 @@ describe('post', () => {
         return { isDirectory: () => true };
       });
 
-      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+      mockExecAsync.mockImplementation(async () => {
+        tarCommandExecuted = true;
+        return { stdout: '', stderr: '' };
+      });
 
       await run();
 

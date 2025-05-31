@@ -25,12 +25,21 @@ export const mockChildProcess = {
 };
 
 // Mock crypto
+let hashCounter = 0;
 export const mockCrypto = {
-  createHash: jest.fn(() => ({
-    update: jest.fn(() => ({
-      digest: jest.fn(() => 'mocked-hash')
-    }))
-  })) as jest.MockedFunction<any>,
+  createHash: jest.fn(() => {
+    hashCounter++;
+    return {
+      update: jest.fn(() => ({
+        digest: jest.fn(() => `mocked-hash-${hashCounter}`)
+      }))
+    };
+  }) as jest.MockedFunction<any>,
+};
+
+// Mock path
+export const mockPath = {
+  join: jest.fn((...parts: string[]) => parts.join('/')),
 };
 
 // Setup mocks
@@ -38,10 +47,12 @@ jest.mock('@actions/core', () => mockCore);
 jest.mock('fs', () => mockFs);
 jest.mock('child_process', () => mockChildProcess);
 jest.mock('crypto', () => mockCrypto);
+jest.mock('path', () => mockPath);
 
 // Reset mocks before each test
 beforeEach(() => {
   jest.clearAllMocks();
+  hashCounter = 0; // Reset hash counter
 });
 
 // Helper function to reset all mock implementations
@@ -61,4 +72,7 @@ export const resetMocks = (): void => {
   
   mockChildProcess.exec.mockReset();
   mockCrypto.createHash.mockReset();
+  mockPath.join.mockReset();
+  
+  hashCounter = 0; // Reset hash counter
 };

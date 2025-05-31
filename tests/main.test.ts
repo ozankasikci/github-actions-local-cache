@@ -1,6 +1,5 @@
 import { jest } from '@jest/globals';
-import { run } from '../lib/main';
-import { mockCore, mockFs, mockChildProcess, mockCrypto, resetMocks } from './setup';
+import { mockCore, mockFs, mockChildProcess, mockCrypto, mockPath, resetMocks } from './setup';
 
 // Mock util.promisify
 const mockExecAsync = jest.fn() as jest.MockedFunction<any>;
@@ -9,15 +8,18 @@ jest.mock('util', () => ({
 }));
 
 // Mock getInputs and related functions
-const mockGetInputs = jest.fn() as jest.MockedFunction<any>;
-const mockValidateInputs = jest.fn() as jest.MockedFunction<any>;
-const mockLogInputs = jest.fn() as jest.MockedFunction<any>;
-
 jest.mock('../lib/utils', () => ({
-  getInputs: mockGetInputs,
-  validateInputs: mockValidateInputs,
-  logInputs: mockLogInputs,
+  getInputs: jest.fn(),
+  validateInputs: jest.fn(),
+  logInputs: jest.fn(),
 }));
+
+import { getInputs, validateInputs, logInputs } from '../lib/utils';
+import { run } from '../lib/main';
+
+const mockGetInputs = getInputs as jest.MockedFunction<typeof getInputs>;
+const mockValidateInputs = validateInputs as jest.MockedFunction<typeof validateInputs>;
+const mockLogInputs = logInputs as jest.MockedFunction<typeof logInputs>;
 
 describe('main', () => {
   beforeEach(() => {
@@ -41,8 +43,19 @@ describe('main', () => {
         enableCrossOsArchive: false,
       };
       mockGetInputs.mockReturnValue(inputs);
-      mockFs.existsSync.mockReturnValue(false); // No cache file exists
-
+      // Set up environment
+      process.env.RUNNER_TEMP = '/tmp';
+      
+      // Set up mocks
+      mockPath.join.mockImplementation((...parts: string[]) => parts.join('/'));
+      
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return false; // Cache dir doesn't exist initially
+        return false; // No cache files exist
+      });
+      
+      mockFs.mkdirSync.mockReturnValue(undefined);
+      
       await run();
 
       expect(mockCore.info).toHaveBeenCalledWith('Starting local cache restore operation...');
