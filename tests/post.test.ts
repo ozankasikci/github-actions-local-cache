@@ -32,6 +32,34 @@ describe('post', () => {
       expect(mockExecAsync).not.toHaveBeenCalled();
     });
 
+    it('should handle advanced cache save scenarios', async () => {
+      mockCore.getState.mockImplementation((key: string) => {
+        switch (key) {
+          case 'cache-primary-key': return 'test-key-123';
+          case 'cache-paths': return JSON.stringify(['node_modules', '.cache']);
+          case 'cache-matched-key': return 'fallback-key';
+          case 'cache-dir': return '/tmp/.local-cache';
+          default: return '';
+        }
+      });
+
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return true;
+        if (path === 'node_modules' || path === '.cache') return true;
+        return false;
+      });
+
+      mockFs.statSync.mockImplementation((path: string) => {
+        return { isDirectory: () => true };
+      });
+
+      await run();
+
+      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache save operation...');
+      expect(mockCore.info).toHaveBeenCalledWith('Will cache node_modules (directory)');
+      expect(mockCore.info).toHaveBeenCalledWith('Will cache .cache (directory)');
+    });
+
     it('should attempt to save cache when no exact match occurred', async () => {
       mockCore.getState.mockImplementation((key: string) => {
         switch (key) {

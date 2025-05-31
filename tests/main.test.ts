@@ -117,8 +117,8 @@ describe('main', () => {
     });
   });
 
-  describe('basic functionality', () => {
-    it('should complete successfully with basic inputs', async () => {
+  describe('extended functionality', () => {
+    it('should handle basic cache operations', async () => {
       const inputs = {
         paths: ['package.json'],
         primaryKey: 'simple-key',
@@ -136,9 +136,10 @@ describe('main', () => {
       expect(mockGetInputs).toHaveBeenCalled();
       expect(mockValidateInputs).toHaveBeenCalledWith(inputs);
       expect(mockLogInputs).toHaveBeenCalledWith(inputs);
+      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache restore operation...');
     });
 
-    it('should handle basic operations', async () => {
+    it('should handle complex input scenarios', async () => {
       const inputs = {
         paths: ['test.txt'],
         primaryKey: 'test',
