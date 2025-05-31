@@ -1,4 +1,4 @@
-# Local Cache Action
+# Local Runner Cache
 
 [![CI](https://github.com/ozankasikci/github-actions-local-cache/actions/workflows/ci.yml/badge.svg)](https://github.com/ozankasikci/github-actions-local-cache/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen.svg)](https://github.com/ozankasikci/github-actions-local-cache)
