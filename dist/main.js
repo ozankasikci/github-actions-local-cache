@@ -55,7 +55,22 @@ async function run() {
             core.info(`Paths to cache: ${inputs.paths.join(', ')}`);
             core.info(`Primary key: ${inputs.primaryKey}`);
             core.info(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
-            cacheKey = await cache.restoreCache(inputs.paths, inputs.primaryKey, inputs.restoreKeys);
+            // Check if paths exist first
+            const fs = __nccwpck_require__(9896);
+            for (const cachePath of inputs.paths) {
+                const exists = fs.existsSync(cachePath);
+                core.info(`Path ${cachePath} exists: ${exists}`);
+                if (exists) {
+                    const stats = fs.statSync(cachePath);
+                    core.info(`Path ${cachePath} is ${stats.isDirectory() ? 'directory' : 'file'}`);
+                }
+            }
+            // Add timeout wrapper
+            const timeoutMs = 30000; // 30 seconds
+            core.info(`Starting cache restore with ${timeoutMs}ms timeout...`);
+            const cachePromise = cache.restoreCache(inputs.paths, inputs.primaryKey, inputs.restoreKeys);
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error(`Cache restore timed out after ${timeoutMs}ms`)), timeoutMs));
+            cacheKey = await Promise.race([cachePromise, timeoutPromise]);
             core.info('Cache restore operation completed');
         }
         catch (error) {
