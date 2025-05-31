@@ -12,21 +12,32 @@ export const mockCore = {
   error: jest.fn() as jest.MockedFunction<any>,
 };
 
-// Mock @actions/cache
-export const mockCache = {
-  restoreCache: jest.fn() as jest.MockedFunction<any>,
-  saveCache: jest.fn() as jest.MockedFunction<any>,
-  ValidationError: {
-    name: 'ValidationError'
-  },
-  ReserveCacheError: {
-    name: 'ReserveCacheError'
-  },
+// Mock filesystem operations
+export const mockFs = {
+  existsSync: jest.fn() as jest.MockedFunction<any>,
+  statSync: jest.fn() as jest.MockedFunction<any>,
+  mkdirSync: jest.fn() as jest.MockedFunction<any>,
+};
+
+// Mock child_process
+export const mockChildProcess = {
+  exec: jest.fn() as jest.MockedFunction<any>,
+};
+
+// Mock crypto
+export const mockCrypto = {
+  createHash: jest.fn(() => ({
+    update: jest.fn(() => ({
+      digest: jest.fn(() => 'mocked-hash')
+    }))
+  })) as jest.MockedFunction<any>,
 };
 
 // Setup mocks
 jest.mock('@actions/core', () => mockCore);
-jest.mock('@actions/cache', () => mockCache);
+jest.mock('fs', () => mockFs);
+jest.mock('child_process', () => mockChildProcess);
+jest.mock('crypto', () => mockCrypto);
 
 // Reset mocks before each test
 beforeEach(() => {
@@ -44,6 +55,10 @@ export const resetMocks = (): void => {
   mockCore.warning.mockReset();
   mockCore.error.mockReset();
   
-  mockCache.restoreCache.mockReset();
-  mockCache.saveCache.mockReset();
+  mockFs.existsSync.mockReset();
+  mockFs.statSync.mockReset();
+  mockFs.mkdirSync.mockReset();
+  
+  mockChildProcess.exec.mockReset();
+  mockCrypto.createHash.mockReset();
 };

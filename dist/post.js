@@ -70,7 +70,7 @@ function getStateFromAction() {
         primaryKey,
         paths,
         matchedKey,
-        cacheDir: cacheDir || path.join(process.env.RUNNER_TEMP || '/tmp', '.local-cache')
+        cacheDir: cacheDir || path.join(process.env.RUNNER_TEMP || '/tmp', '.local-cache'),
     };
 }
 async function run() {
@@ -115,7 +115,7 @@ async function run() {
         const execAsync = util.promisify(exec);
         try {
             // Create tar.gz archive of the paths
-            const pathsStr = existingPaths.map(p => `"${p}"`).join(' ');
+            const pathsStr = existingPaths.map((p) => `"${p}"`).join(' ');
             const tarCommand = `tar -czf "${cacheFile}" ${pathsStr}`;
             core.info(`Running: ${tarCommand}`);
             await execAsync(tarCommand);
