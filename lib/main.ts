@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { getInputs, validateInputs, logInputs } from './utils';
+import { getInputs, validateInputs, logInputs, getCacheDir } from './utils';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -15,8 +15,8 @@ async function run(): Promise<void> {
     core.info(`Primary key: ${inputs.primaryKey}`);
     core.info(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
 
-    // Create local cache directory in runner's temp space
-    const cacheDir = path.join(process.env.RUNNER_TEMP || '/tmp', '.local-cache');
+    // Create local cache directory in user's cache space (persistent)
+    const cacheDir = getCacheDir(inputs);
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
       core.info(`Created local cache directory: ${cacheDir}`);

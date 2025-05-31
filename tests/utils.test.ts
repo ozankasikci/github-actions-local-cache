@@ -190,7 +190,8 @@ describe('utils', () => {
 
       expect(mockCore.info).toHaveBeenCalledWith('Cache key: test-key');
       expect(mockCore.info).toHaveBeenCalledWith('Cache paths: node_modules');
-      expect(mockCore.info).toHaveBeenCalledTimes(2);
+      // Now includes cache directory log
+      expect(mockCore.info).toHaveBeenCalledTimes(3);
     });
   });
 });

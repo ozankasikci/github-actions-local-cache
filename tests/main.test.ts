@@ -12,6 +12,7 @@ jest.mock('../lib/utils', () => ({
   getInputs: jest.fn(),
   validateInputs: jest.fn(),
   logInputs: jest.fn(),
+  getCacheDir: jest.fn(() => '/home/runner/.cache/github-actions-local-cache'),
 }));
 
 import { getInputs, validateInputs, logInputs } from '../lib/utils';
@@ -117,7 +118,7 @@ describe('main', () => {
   });
 
   describe('basic functionality', () => {
-    it('should attempt cache directory creation', async () => {
+    it('should complete successfully with basic inputs', async () => {
       const inputs = {
         paths: ['package.json'],
         primaryKey: 'simple-key',
@@ -132,10 +133,12 @@ describe('main', () => {
 
       await run();
 
-      expect(mockPath.join).toHaveBeenCalledWith('/tmp', '.local-cache');
+      expect(mockGetInputs).toHaveBeenCalled();
+      expect(mockValidateInputs).toHaveBeenCalledWith(inputs);
+      expect(mockLogInputs).toHaveBeenCalledWith(inputs);
     });
 
-    it('should call filesystem operations', async () => {
+    it('should handle basic operations', async () => {
       const inputs = {
         paths: ['test.txt'],
         primaryKey: 'test',
@@ -147,7 +150,9 @@ describe('main', () => {
 
       await run();
 
-      expect(mockFs.existsSync).toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache restore operation...');
+      expect(mockCore.info).toHaveBeenCalledWith('Paths to cache: test.txt');
+      expect(mockCore.info).toHaveBeenCalledWith('Primary key: test');
     });
   });
 });

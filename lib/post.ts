@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { getDefaultCacheDir } from './utils';
 
 function getStateFromAction(): {
   primaryKey: string;
@@ -37,7 +38,7 @@ function getStateFromAction(): {
     primaryKey,
     paths,
     matchedKey,
-    cacheDir: cacheDir || path.join(process.env.RUNNER_TEMP || '/tmp', '.local-cache'),
+    cacheDir: cacheDir || getDefaultCacheDir(),
   };
 }
 
