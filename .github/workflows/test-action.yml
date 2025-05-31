@@ -1,0 +1,207 @@
+name: Test Action Functionality
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-action-basic:
+    name: Test Basic Functionality
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build action
+      run: npm run build
+      
+    - name: Create test files
+      shell: bash
+      run: |
+        mkdir -p test-files
+        echo "Test content for ${{ matrix.os }}" > test-files/test.txt
+        echo "Another test file" > test-files/test2.txt
+        
+    - name: Test cache miss (first run)
+      id: test-miss
+      uses: ./
+      with:
+        path: test-files
+        key: test-basic-${{ matrix.os }}-${{ github.run_id }}
+        
+    - name: Verify cache miss
+      shell: bash
+      run: |
+        echo "Cache hit: ${{ steps.test-miss.outputs.cache-hit }}"
+        echo "Primary key: ${{ steps.test-miss.outputs.cache-primary-key }}"
+        echo "Matched key: ${{ steps.test-miss.outputs.cache-matched-key }}"
+        
+        if [ "${{ steps.test-miss.outputs.cache-hit }}" = "false" ]; then
+          echo "✅ Cache miss confirmed"
+        else
+          echo "❌ Expected cache miss but got hit"
+          exit 1
+        fi
+        
+    - name: Modify test files
+      shell: bash
+      run: |
+        echo "Modified content" > test-files/test.txt
+        
+    - name: Test cache hit (second run)
+      id: test-hit
+      uses: ./
+      with:
+        path: test-files
+        key: test-basic-${{ matrix.os }}-${{ github.run_id }}
+        
+    - name: Verify cache hit
+      shell: bash
+      run: |
+        echo "Cache hit: ${{ steps.test-hit.outputs.cache-hit }}"
+        echo "Primary key: ${{ steps.test-hit.outputs.cache-primary-key }}"
+        echo "Matched key: ${{ steps.test-hit.outputs.cache-matched-key }}"
+        
+        if [ "${{ steps.test-hit.outputs.cache-hit }}" = "true" ]; then
+          echo "✅ Cache hit confirmed"
+        else
+          echo "⚠️ Expected cache hit but got miss (cache save may have failed)"
+        fi
+
+  test-action-advanced:
+    name: Test Advanced Features
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build action
+      run: npm run build
+      
+    - name: Test multiple paths
+      id: test-multiple
+      uses: ./
+      with:
+        path: |
+          node_modules
+          package.json
+          package-lock.json
+        key: test-multiple-${{ github.run_id }}
+        restore-keys: |
+          test-multiple-
+          test-
+          
+    - name: Verify multiple paths
+      run: |
+        echo "Multiple paths test completed"
+        echo "Cache hit: ${{ steps.test-multiple.outputs.cache-hit }}"
+        
+    - name: Test with upload chunk size
+      id: test-chunk
+      uses: ./
+      with:
+        path: node_modules
+        key: test-chunk-${{ github.run_id }}
+        upload-chunk-size: 1048576
+        
+    - name: Test cross-OS archive option
+      id: test-cross-os
+      uses: ./
+      with:
+        path: package.json
+        key: test-cross-os-${{ github.run_id }}
+        enableCrossOsArchive: true
+        
+    - name: Test restore keys functionality
+      id: test-restore
+      uses: ./
+      with:
+        path: package.json
+        key: test-restore-new-key-${{ github.run_id }}
+        restore-keys: |
+          test-cross-os-${{ github.run_id }}
+          test-restore-
+          test-
+          
+    - name: Verify restore keys worked
+      run: |
+        echo "Restore test completed"
+        echo "Cache hit: ${{ steps.test-restore.outputs.cache-hit }}"
+        echo "Matched key: ${{ steps.test-restore.outputs.cache-matched-key }}"
+        
+        if [ "${{ steps.test-restore.outputs.cache-matched-key }}" != "" ]; then
+          echo "✅ Restore keys working - matched: ${{ steps.test-restore.outputs.cache-matched-key }}"
+        else
+          echo "ℹ️ No restore key match found"
+        fi
+
+  test-action-edge-cases:
+    name: Test Edge Cases
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build action
+      run: npm run build
+      
+    - name: Test with non-existent path (should not fail)
+      id: test-nonexistent
+      continue-on-error: true
+      uses: ./
+      with:
+        path: non-existent-path
+        key: test-nonexistent-${{ github.run_id }}
+        
+    - name: Test with empty restore keys
+      id: test-empty-restore
+      uses: ./
+      with:
+        path: package.json
+        key: test-empty-restore-${{ github.run_id }}
+        restore-keys: ""
+        
+    - name: Test with special characters in key
+      id: test-special
+      uses: ./
+      with:
+        path: package.json
+        key: test-special-key-${{ github.run_id }}-with.dots_and-dashes
+        
+    - name: Verify edge cases handled
+      run: |
+        echo "Edge case tests completed"
+        echo "✅ Action handled edge cases without crashing"

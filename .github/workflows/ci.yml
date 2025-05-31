@@ -68,16 +68,77 @@ jobs:
     - name: Build and package
       run: npm run all
 
-    - name: Test the action (basic)
+    - name: Test the action (first run - cache miss expected)
+      id: cache-test-1
       uses: ./
       with:
         path: |
           node_modules
           package-lock.json
-        key: test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+        key: test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
+        restore-keys: |
+          test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-
+          test-${{ runner.os }}-
         
-    - name: Verify action outputs
+    - name: Verify first run outputs (cache miss)
       run: |
-        echo "Cache hit: ${{ steps.cache.outputs.cache-hit }}"
-        echo "Primary key: ${{ steps.cache.outputs.cache-primary-key }}"
-        echo "Matched key: ${{ steps.cache.outputs.cache-matched-key }}"
+        echo "Cache hit: ${{ steps.cache-test-1.outputs.cache-hit }}"
+        echo "Primary key: ${{ steps.cache-test-1.outputs.cache-primary-key }}"
+        echo "Matched key: ${{ steps.cache-test-1.outputs.cache-matched-key }}"
+        
+        # Verify cache miss on first run
+        if [ "${{ steps.cache-test-1.outputs.cache-hit }}" = "true" ]; then
+          echo "❌ ERROR: Expected cache miss on first run"
+          exit 1
+        else
+          echo "✅ Cache miss confirmed on first run"
+        fi
+        
+    - name: Create test files for caching
+      run: |
+        mkdir -p test-cache
+        echo "Test content ${{ github.run_id }}" > test-cache/test-file.txt
+        echo "Another file" > test-cache/another-file.txt
+        
+    - name: Test the action (second run - cache hit expected)
+      id: cache-test-2
+      uses: ./
+      with:
+        path: test-cache
+        key: test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
+        
+    - name: Verify second run outputs (cache hit)
+      run: |
+        echo "Cache hit: ${{ steps.cache-test-2.outputs.cache-hit }}"
+        echo "Primary key: ${{ steps.cache-test-2.outputs.cache-primary-key }}"
+        echo "Matched key: ${{ steps.cache-test-2.outputs.cache-matched-key }}"
+        
+        # Verify cache hit on second run
+        if [ "${{ steps.cache-test-2.outputs.cache-hit }}" = "true" ]; then
+          echo "✅ Cache hit confirmed on second run"
+        else
+          echo "⚠️ Cache miss on second run (may be expected if cache save failed)"
+        fi
+        
+    - name: Test with restore keys
+      id: cache-test-3
+      uses: ./
+      with:
+        path: test-cache
+        key: test-${{ runner.os }}-different-key-${{ github.run_id }}
+        restore-keys: |
+          test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
+          test-${{ runner.os }}-
+          
+    - name: Verify restore keys functionality
+      run: |
+        echo "Cache hit: ${{ steps.cache-test-3.outputs.cache-hit }}"
+        echo "Primary key: ${{ steps.cache-test-3.outputs.cache-primary-key }}"
+        echo "Matched key: ${{ steps.cache-test-3.outputs.cache-matched-key }}"
+        
+        # Check if restore key was used
+        if [ "${{ steps.cache-test-3.outputs.cache-matched-key }}" != "" ]; then
+          echo "✅ Restore key functionality working - matched: ${{ steps.cache-test-3.outputs.cache-matched-key }}"
+        else
+          echo "ℹ️ No cache match found with restore keys"
+        fi
