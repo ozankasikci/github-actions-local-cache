@@ -30,7 +30,22 @@ jobs:
     - name: Build and package
       run: npm run all
 
+    - name: Check if release exists
+      id: check_release
+      run: |
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "Release $TAG_NAME already exists"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Release $TAG_NAME does not exist"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Create Release
+      if: steps.check_release.outputs.exists == 'false'
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -43,3 +58,9 @@ jobs:
           - Bug fixes and improvements
         draft: false
         prerelease: false
+
+    - name: Release already exists
+      if: steps.check_release.outputs.exists == 'true'
+      run: |
+        echo "Release already exists. Skipping release creation."
+        echo "You can view the existing release at: https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF#refs/tags/}"
