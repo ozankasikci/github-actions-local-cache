@@ -1,4 +1,4 @@
-require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
+/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 7875:
@@ -72513,4 +72513,3 @@ function randomUUID() {
 /******/ 	
 /******/ })()
 ;
-//# sourceMappingURL=index.js.map
