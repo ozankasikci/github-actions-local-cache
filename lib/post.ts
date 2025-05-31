@@ -46,7 +46,7 @@ async function run(): Promise<void> {
       return;
     }
 
-    const options: CacheOptions = {
+    const options = {
       uploadChunkSize: state.uploadChunkSize ? parseInt(state.uploadChunkSize, 10) : undefined,
       enableCrossOsArchive: state.enableCrossOsArchive === 'true',
     };
