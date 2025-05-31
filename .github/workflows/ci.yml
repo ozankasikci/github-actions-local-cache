@@ -32,6 +32,9 @@ jobs:
     - name: Run tests
       run: npm run test:coverage
 
+    - name: Update coverage badge
+      run: npm run update-badge
+
     - name: Build TypeScript
       run: npm run build:ts
 

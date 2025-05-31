@@ -1,5 +1,10 @@
 # Local Cache Action
 
+[![CI](https://github.com/ozankasikci/github-actions-local-cache/actions/workflows/ci.yml/badge.svg)](https://github.com/ozankasikci/github-actions-local-cache/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen.svg)](https://github.com/ozankasikci/github-actions-local-cache)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue.svg)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A GitHub Action for caching files and folders locally on the runner to speed up your workflows.
 
 ## Features

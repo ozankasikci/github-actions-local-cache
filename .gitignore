@@ -9,3 +9,4 @@ lib/**/*.js
 lib/**/*.d.ts
 lib/**/*.js.map
 .eslintcache
+scripts/node_modules/
