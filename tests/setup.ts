@@ -41,12 +41,18 @@ export const mockPath = {
   join: jest.fn((...parts: string[]) => parts.join('/')),
 };
 
+// Mock os
+export const mockOs = {
+  homedir: jest.fn(() => '/home/runner'),
+};
+
 // Setup mocks
 jest.mock('@actions/core', () => mockCore);
 jest.mock('fs', () => mockFs);
 jest.mock('child_process', () => mockChildProcess);
 jest.mock('crypto', () => mockCrypto);
 jest.mock('path', () => mockPath);
+jest.mock('os', () => mockOs);
 
 // Reset mocks before each test
 beforeEach(() => {
@@ -72,6 +78,7 @@ export const resetMocks = (): void => {
   mockChildProcess.exec.mockReset();
   mockCrypto.createHash.mockReset();
   mockPath.join.mockReset();
+  mockOs.homedir.mockReset();
   
   hashCounter = 0; // Reset hash counter
 };

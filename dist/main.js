@@ -55,8 +55,8 @@ async function run() {
         core.info(`Paths to cache: ${inputs.paths.join(', ')}`);
         core.info(`Primary key: ${inputs.primaryKey}`);
         core.info(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
-        // Create local cache directory in runner's temp space
-        const cacheDir = path.join(process.env.RUNNER_TEMP || '/tmp', '.local-cache');
+        // Create local cache directory in user's cache space (persistent)
+        const cacheDir = (0, utils_1.getCacheDir)(inputs);
         if (!fs.existsSync(cacheDir)) {
             fs.mkdirSync(cacheDir, { recursive: true });
             core.info(`Created local cache directory: ${cacheDir}`);
@@ -162,14 +162,19 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getInputs = getInputs;
 exports.validateInputs = validateInputs;
+exports.getDefaultCacheDir = getDefaultCacheDir;
+exports.getCacheDir = getCacheDir;
 exports.logInputs = logInputs;
 const core = __importStar(__nccwpck_require__(7484));
+const path = __importStar(__nccwpck_require__(6928));
+const os = __importStar(__nccwpck_require__(857));
 function getInputs() {
     const paths = core.getInput('path', { required: true });
     const primaryKey = core.getInput('key', { required: true });
     const restoreKeys = core.getInput('restore-keys');
     const uploadChunkSize = core.getInput('upload-chunk-size');
     const enableCrossOsArchive = core.getInput('enableCrossOsArchive') === 'true';
+    const cacheDir = core.getInput('cache-dir');
     const pathsArray = paths
         .split('\n')
         .map((p) => p.trim())
@@ -192,6 +197,7 @@ function getInputs() {
         restoreKeys: restoreKeysArray,
         uploadChunkSize: uploadChunkSize ? parseInt(uploadChunkSize, 10) : undefined,
         enableCrossOsArchive,
+        cacheDir: cacheDir.trim() || undefined,
     };
 }
 function validateInputs(inputs) {
@@ -203,6 +209,15 @@ function validateInputs(inputs) {
             throw new Error(`Invalid path: ${path}. Paths cannot contain '..'`);
         }
     }
+}
+function getDefaultCacheDir() {
+    // Use user's cache directory instead of temp directory
+    // This persists across runner jobs and system restarts
+    const homeDir = os.homedir();
+    return path.join(homeDir, '.cache', 'github-actions-local-cache');
+}
+function getCacheDir(inputs) {
+    return inputs.cacheDir || getDefaultCacheDir();
 }
 function logInputs(inputs) {
     core.info(`Cache key: ${inputs.primaryKey}`);
@@ -216,6 +231,8 @@ function logInputs(inputs) {
     if (inputs.enableCrossOsArchive) {
         core.info('Cross-OS archive enabled');
     }
+    const cacheDir = getCacheDir(inputs);
+    core.info(`Cache directory: ${cacheDir}`);
 }
 //# sourceMappingURL=utils.js.map
 

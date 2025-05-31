@@ -1,4 +1,6 @@
 import * as core from '@actions/core';
+import * as path from 'path';
+import * as os from 'os';
 import { CacheInputs } from './types';
 
 export function getInputs(): CacheInputs {
@@ -7,6 +9,7 @@ export function getInputs(): CacheInputs {
   const restoreKeys = core.getInput('restore-keys');
   const uploadChunkSize = core.getInput('upload-chunk-size');
   const enableCrossOsArchive = core.getInput('enableCrossOsArchive') === 'true';
+  const cacheDir = core.getInput('cache-dir');
 
   const pathsArray = paths
     .split('\n')
@@ -34,6 +37,7 @@ export function getInputs(): CacheInputs {
     restoreKeys: restoreKeysArray,
     uploadChunkSize: uploadChunkSize ? parseInt(uploadChunkSize, 10) : undefined,
     enableCrossOsArchive,
+    cacheDir: cacheDir.trim() || undefined,
   };
 }
 
@@ -47,6 +51,17 @@ export function validateInputs(inputs: CacheInputs): void {
       throw new Error(`Invalid path: ${path}. Paths cannot contain '..'`);
     }
   }
+}
+
+export function getDefaultCacheDir(): string {
+  // Use user's cache directory instead of temp directory
+  // This persists across runner jobs and system restarts
+  const homeDir = os.homedir();
+  return path.join(homeDir, '.cache', 'github-actions-local-cache');
+}
+
+export function getCacheDir(inputs: CacheInputs): string {
+  return inputs.cacheDir || getDefaultCacheDir();
 }
 
 export function logInputs(inputs: CacheInputs): void {
@@ -64,4 +79,7 @@ export function logInputs(inputs: CacheInputs): void {
   if (inputs.enableCrossOsArchive) {
     core.info('Cross-OS archive enabled');
   }
+
+  const cacheDir = getCacheDir(inputs);
+  core.info(`Cache directory: ${cacheDir}`);
 }

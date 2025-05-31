@@ -22,6 +22,9 @@ inputs:
     description: 'An optional boolean when enabled, allows windows runners to save or restore caches that can be restored or saved respectively on other platforms'
     default: 'false'
     required: false
+  cache-dir:
+    description: 'Directory where cache files will be stored. Defaults to ~/.cache/github-actions-local-cache'
+    required: false
 
 outputs:
   cache-hit:

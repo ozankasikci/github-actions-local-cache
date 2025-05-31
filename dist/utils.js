@@ -35,14 +35,19 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getInputs = getInputs;
 exports.validateInputs = validateInputs;
+exports.getDefaultCacheDir = getDefaultCacheDir;
+exports.getCacheDir = getCacheDir;
 exports.logInputs = logInputs;
 const core = __importStar(require("@actions/core"));
+const path = __importStar(require("path"));
+const os = __importStar(require("os"));
 function getInputs() {
     const paths = core.getInput('path', { required: true });
     const primaryKey = core.getInput('key', { required: true });
     const restoreKeys = core.getInput('restore-keys');
     const uploadChunkSize = core.getInput('upload-chunk-size');
     const enableCrossOsArchive = core.getInput('enableCrossOsArchive') === 'true';
+    const cacheDir = core.getInput('cache-dir');
     const pathsArray = paths
         .split('\n')
         .map((p) => p.trim())
@@ -65,6 +70,7 @@ function getInputs() {
         restoreKeys: restoreKeysArray,
         uploadChunkSize: uploadChunkSize ? parseInt(uploadChunkSize, 10) : undefined,
         enableCrossOsArchive,
+        cacheDir: cacheDir.trim() || undefined,
     };
 }
 function validateInputs(inputs) {
@@ -76,6 +82,15 @@ function validateInputs(inputs) {
             throw new Error(`Invalid path: ${path}. Paths cannot contain '..'`);
         }
     }
+}
+function getDefaultCacheDir() {
+    // Use user's cache directory instead of temp directory
+    // This persists across runner jobs and system restarts
+    const homeDir = os.homedir();
+    return path.join(homeDir, '.cache', 'github-actions-local-cache');
+}
+function getCacheDir(inputs) {
+    return inputs.cacheDir || getDefaultCacheDir();
 }
 function logInputs(inputs) {
     core.info(`Cache key: ${inputs.primaryKey}`);
@@ -89,5 +104,7 @@ function logInputs(inputs) {
     if (inputs.enableCrossOsArchive) {
         core.info('Cross-OS archive enabled');
     }
+    const cacheDir = getCacheDir(inputs);
+    core.info(`Cache directory: ${cacheDir}`);
 }
 //# sourceMappingURL=utils.js.map

@@ -9,6 +9,7 @@ export interface CacheInputs {
   restoreKeys?: string[];
   uploadChunkSize?: number;
   enableCrossOsArchive: boolean;
+  cacheDir?: string;
 }
 
 export interface CacheState {
