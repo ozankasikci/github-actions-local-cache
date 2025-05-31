@@ -21,7 +21,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache dependencies
-  uses: your-username/github-actions-local-cache@v1
+  uses: ozankasikci/github-actions-local-cache@v1
   with:
     path: |
       ~/.npm
@@ -35,7 +35,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache build artifacts
-  uses: your-username/github-actions-local-cache@v1
+  uses: ozankasikci/github-actions-local-cache@v1
   with:
     path: |
       dist
@@ -52,7 +52,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache with custom settings
-  uses: your-username/github-actions-local-cache@v1
+  uses: ozankasikci/github-actions-local-cache@v1
   with:
     path: large-files/
     key: ${{ runner.os }}-large-${{ hashFiles('**/checksums.txt') }}
@@ -85,7 +85,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache Node.js dependencies
-  uses: your-username/github-actions-local-cache@v1
+  uses: ozankasikci/github-actions-local-cache@v1
   with:
     path: |
       ~/.npm
@@ -99,7 +99,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache Python dependencies
-  uses: your-username/github-actions-local-cache@v1
+  uses: ozankasikci/github-actions-local-cache@v1
   with:
     path: |
       ~/.cache/pip
@@ -113,7 +113,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache Gradle dependencies
-  uses: your-username/github-actions-local-cache@v1
+  uses: ozankasikci/github-actions-local-cache@v1
   with:
     path: |
       ~/.gradle/caches

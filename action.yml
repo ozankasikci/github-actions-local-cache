@@ -1,6 +1,6 @@
 name: 'Local Cache Action'
 description: 'Cache files and folders locally on the runner for faster builds'
-author: 'Your Name'
+author: 'Ozan Kaşıkçı'
 branding:
   icon: 'archive'
   color: 'blue'
