@@ -7,13 +7,6 @@
 
 A GitHub Action for caching files and folders locally on the runner to speed up your workflows.
 
-## 🚀 What's New in v1.4.0
-
-- **🔐 File Locking System** - Prevents race conditions during concurrent cache access
-- **⏱️ Lock Timeout Protection** - Automatically breaks stale locks after 30 seconds
-- **🛡️ Buffer Overflow Fix** - Resolves "maxBuffer exceeded" errors for large cache files
-- **🔄 Double-Check Pattern** - Verifies cache exists after acquiring lock
-- **⚡ Quick Integrity Check** - Uses optimized method to prevent performance issues
 
 ## Features
 
@@ -29,7 +22,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache dependencies
-  uses: ozankasikci/github-actions-local-cache@v1.4.0  # or @v1 for latest
+  uses: ozankasikci/github-actions-local-cache@v1.4.1  # or @v1 for latest
   with:
     path: |
       ~/.npm
