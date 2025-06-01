@@ -243,5 +243,191 @@ describe('main', () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Cache file is empty, removing:'));
       expect(mockFs.unlinkSync).toHaveBeenCalled();
     });
+
+    it('should handle file locking for concurrent access', async () => {
+      const inputs = {
+        paths: ['package.json'],
+        primaryKey: 'test-key',
+        restoreKeys: [],
+        uploadChunkSize: undefined,
+        enableCrossOsArchive: false,
+      };
+      mockGetInputs.mockReturnValue(inputs);
+
+      // Mock cache directory and file existence
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path.includes('.cache/github-actions-local-cache')) return true;
+        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        if (path.includes('.lock')) return false; // No existing lock
+        return false;
+      });
+
+      mockFs.statSync.mockReturnValue({ size: 1024 });
+      mockFs.writeFileSync.mockImplementation(() => {}); // Mock lock file creation
+
+      // Mock execAsync for integrity check and extraction
+      mockExecAsync.mockImplementation((cmd: string) => {
+        if (cmd.includes('head -n 1')) {
+          return Promise.resolve({ stdout: '', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
+      await run();
+
+      expect(mockFs.writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining('.lock'),
+        expect.any(String)
+      );
+      expect(mockFs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('.lock'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Performing quick integrity check...'));
+    });
+
+    it('should wait for existing lock to be released', async () => {
+      const inputs = {
+        paths: ['package.json'],
+        primaryKey: 'test-key',
+        restoreKeys: [],
+        uploadChunkSize: undefined,
+        enableCrossOsArchive: false,
+      };
+      mockGetInputs.mockReturnValue(inputs);
+
+      let lockCheckCount = 0;
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path.includes('.cache/github-actions-local-cache')) return true;
+        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        if (path.includes('.lock')) {
+          lockCheckCount++;
+          return lockCheckCount <= 2; // Lock exists for first 2 checks, then released
+        }
+        return false;
+      });
+
+      mockFs.statSync.mockReturnValue({ size: 1024 });
+      mockFs.writeFileSync.mockImplementation(() => {}); // Mock lock file creation
+
+      // Mock execAsync for integrity check and extraction
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+
+      await run();
+
+      expect(lockCheckCount).toBeGreaterThan(1); // Should have checked for lock multiple times
+      expect(mockFs.writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining('.lock'),
+        expect.any(String)
+      );
+    });
+
+    it('should handle lock timeout and break stale locks', async () => {
+      const inputs = {
+        paths: ['package.json'],
+        primaryKey: 'test-key',
+        restoreKeys: [],
+        uploadChunkSize: undefined,
+        enableCrossOsArchive: false,
+      };
+      mockGetInputs.mockReturnValue(inputs);
+
+      // Mock a stale lock that never gets released
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path.includes('.cache/github-actions-local-cache')) return true;
+        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        if (path.includes('.lock')) return true; // Lock always exists (stale)
+        return false;
+      });
+
+      mockFs.statSync.mockReturnValue({ size: 1024 });
+      mockFs.writeFileSync.mockImplementation(() => {}); // Mock lock file creation
+
+      // Mock Date.now to simulate timeout
+      const originalDateNow = Date.now;
+      let callCount = 0;
+      Date.now = jest.fn(() => {
+        callCount++;
+        return originalDateNow() + (callCount > 1 ? 35000 : 0); // Simulate timeout after first call
+      });
+
+      // Mock execAsync for integrity check and extraction
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+
+      await run();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Lock timeout exceeded'));
+      expect(mockFs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('.lock'));
+
+      // Restore Date.now
+      Date.now = originalDateNow;
+    });
+
+    it('should handle cache file removed by another process after lock', async () => {
+      const inputs = {
+        paths: ['package.json'],
+        primaryKey: 'test-key',
+        restoreKeys: [],
+        uploadChunkSize: undefined,
+        enableCrossOsArchive: false,
+      };
+      mockGetInputs.mockReturnValue(inputs);
+
+      let lockAcquired = false;
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path.includes('.cache/github-actions-local-cache')) return true;
+        if (path.includes('mocked-hash-1.tar.gz')) {
+          // Cache file exists initially, but disappears after lock is acquired
+          return !lockAcquired;
+        }
+        if (path.includes('.lock')) return false; // No existing lock
+        return false;
+      });
+
+      mockFs.writeFileSync.mockImplementation((path: string) => {
+        if (path.includes('.lock')) {
+          lockAcquired = true; // Mark lock as acquired
+        }
+      });
+
+      mockFs.statSync.mockReturnValue({ size: 1024 });
+
+      await run();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Cache file was removed by another process')
+      );
+      expect(mockFs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('.lock'));
+    });
+
+    it('should handle lock file creation failure', async () => {
+      const inputs = {
+        paths: ['package.json'],
+        primaryKey: 'test-key',
+        restoreKeys: [],
+        uploadChunkSize: undefined,
+        enableCrossOsArchive: false,
+      };
+      mockGetInputs.mockReturnValue(inputs);
+
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path.includes('.cache/github-actions-local-cache')) return true;
+        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        if (path.includes('.lock')) return false; // No existing lock
+        return false;
+      });
+
+      mockFs.statSync.mockReturnValue({ size: 1024 });
+      
+      // Mock lock file creation failure
+      mockFs.writeFileSync.mockImplementation((path: string) => {
+        if (path.includes('.lock')) {
+          throw new Error('Permission denied');
+        }
+      });
+
+      await run();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to create lock file')
+      );
+    });
   });
 });

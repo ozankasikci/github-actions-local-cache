@@ -18,6 +18,7 @@ export const mockFs = {
   statSync: jest.fn() as jest.MockedFunction<any>,
   mkdirSync: jest.fn() as jest.MockedFunction<any>,
   unlinkSync: jest.fn() as jest.MockedFunction<any>,
+  writeFileSync: jest.fn() as jest.MockedFunction<any>,
   promises: {
     rename: jest.fn() as jest.MockedFunction<any>,
     unlink: jest.fn() as jest.MockedFunction<any>,
@@ -80,6 +81,7 @@ export const resetMocks = (): void => {
   mockFs.statSync.mockReset();
   mockFs.mkdirSync.mockReset();
   mockFs.unlinkSync.mockReset();
+  mockFs.writeFileSync.mockReset();
   mockFs.promises.rename.mockReset();
   mockFs.promises.unlink.mockReset();
   
