@@ -56,8 +56,17 @@ async function run(): Promise<void> {
 
           // Extract cache to restore the files
           core.info(`Extracting cache from: ${cacheFile}`);
+          
+          // First, list what will be extracted to show the structure
+          const listResult = await execAsync(`tar -tzf "${cacheFile}"`);
+          const extractedPaths = listResult.stdout.trim().split('\n').slice(0, 10); // Show first 10 paths
+          core.info(`Cache contains ${listResult.stdout.trim().split('\n').length} files/directories`);
+          core.info(`Sample paths: ${extractedPaths.join(', ')}`);
+          
+          // Extract to root directory
+          core.info(`Extracting to root directory: /`);
           await execAsync(`tar -xzf "${cacheFile}" -C /`);
-          core.info('Cache restored successfully');
+          core.info(`Cache restored successfully to root directory`);
           break;
         } catch (error) {
           core.warning(`Cache file is corrupted or invalid: ${cacheFile}`);
