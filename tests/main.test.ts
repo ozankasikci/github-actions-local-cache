@@ -470,5 +470,48 @@ describe('main', () => {
         expect.stringContaining('Failed to create lock file')
       );
     });
+
+    it('should handle tar extraction errors gracefully', async () => {
+      const inputs = {
+        paths: ['package.json'],
+        primaryKey: 'test-key',
+        restoreKeys: [],
+        uploadChunkSize: undefined,
+        enableCrossOsArchive: false,
+      };
+      mockGetInputs.mockReturnValue(inputs);
+
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/home/runner/.cache/github-actions-local-cache') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz') return true;
+        if (path.endsWith('.lock')) return false; // No lock file
+        return false;
+      });
+
+      mockFs.statSync.mockReturnValue({ size: 1024 });
+      mockFs.writeFileSync.mockImplementation(() => {}); // Lock file creation
+      mockFs.unlinkSync.mockImplementation(() => {}); // Lock file removal
+
+      // Mock checksum verification to fail so tar check runs
+      mockVerifyChecksum.mockResolvedValue(false);
+
+      // Mock execAsync to fail on extraction
+      mockExecAsync.mockImplementation((cmd: string) => {
+        if (cmd.includes('tar -tzf')) {
+          return Promise.resolve({ stdout: 'file1\nfile2\nfile3\n', stderr: '' });
+        }
+        if (cmd.includes('tar -xzf')) {
+          return Promise.reject(new Error('Extraction failed'));
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
+
+      await run();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Cache file is corrupted or invalid')
+      );
+    });
+
   });
 });
