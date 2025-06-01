@@ -89,9 +89,9 @@ jobs:
               path: |
                 node_modules
                 ~/.npm
-              key: ${{ "{{" }} runner.os {{ "}}" }}-deps-${{ "{{" }} hashFiles('**/package-lock.json') {{ "}}" }}
+              key: \${{ runner.os }}-deps-\${{ hashFiles('**/package-lock.json') }}
               restore-keys: |
-                ${{ "{{" }} runner.os {{ "}}" }}-deps-
+                \${{ runner.os }}-deps-
           ```
           
           ## 🔗 Built Files
