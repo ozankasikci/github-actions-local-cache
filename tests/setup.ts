@@ -30,21 +30,23 @@ export const mockChildProcess = {
   exec: jest.fn() as jest.MockedFunction<any>,
 };
 
-// Mock crypto
+// Mock crypto - return predictable hash for each key
 export let hashCounter = 0;
 export const mockCrypto = {
   createHash: jest.fn().mockImplementation(() => {
-    hashCounter++;
     const hashObject: any = {};
     hashObject.update = jest.fn().mockReturnValue(hashObject);
-    hashObject.digest = jest.fn().mockReturnValue(`mocked-hash-${hashCounter}`);
+    hashObject.digest = jest.fn().mockImplementation((...args: any[]) => {
+      hashCounter++;
+      return `mocked-hash-${hashCounter}`;
+    });
     return hashObject;
   }),
 };
 
 // Mock path
 export const mockPath = {
-  join: jest.fn((...parts: string[]) => parts.join('/')),
+  join: jest.fn((...parts: string[]) => parts.filter(p => p && p.length > 0).join('/')),
 };
 
 // Mock os
@@ -86,9 +88,24 @@ export const resetMocks = (): void => {
   mockFs.promises.unlink.mockReset();
   
   mockChildProcess.exec.mockReset();
+  
+  // Reset crypto mock and restore implementation
   mockCrypto.createHash.mockReset();
+  mockCrypto.createHash.mockImplementation(() => {
+    const hashObject: any = {};
+    hashObject.update = jest.fn().mockReturnValue(hashObject);
+    hashObject.digest = jest.fn().mockImplementation((...args: any[]) => {
+      hashCounter++;
+      return `mocked-hash-${hashCounter}`;
+    });
+    return hashObject;
+  });
+  
   mockPath.join.mockReset();
+  mockPath.join.mockImplementation((...parts: string[]) => parts.filter(p => p && p.length > 0).join('/'));
+  
   mockOs.homedir.mockReset();
+  mockOs.homedir.mockReturnValue('/home/runner');
   
   hashCounter = 0; // Reset hash counter
 };

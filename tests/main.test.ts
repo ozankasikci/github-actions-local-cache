@@ -167,13 +167,16 @@ describe('main', () => {
       mockGetInputs.mockReturnValue(inputs);
 
       // Mock cache directory and file existence
+      // Expected path: /home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz
       mockFs.existsSync.mockImplementation((path: string) => {
-        if (path.includes('.cache/github-actions-local-cache')) return true;
-        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz') return true;
+        if (path.endsWith('.lock')) return false; // No lock file
         return false;
       });
 
       mockFs.statSync.mockReturnValue({ size: 1024 });
+      mockFs.writeFileSync.mockImplementation(() => {}); // Lock file creation
 
       // Mock execAsync for integrity check and extraction
       mockExecAsync.mockImplementation((cmd: string) => {
@@ -202,12 +205,15 @@ describe('main', () => {
 
       // Mock cache directory and file existence
       mockFs.existsSync.mockImplementation((path: string) => {
-        if (path.includes('.cache/github-actions-local-cache')) return true;
-        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz') return true;
+        if (path.endsWith('.lock')) return false; // No lock file
         return false;
       });
 
       mockFs.statSync.mockReturnValue({ size: 1024 });
+      mockFs.writeFileSync.mockImplementation(() => {}); // Lock file creation
+      mockFs.unlinkSync.mockImplementation(() => {}); // File deletion
 
       // Mock integrity check to fail
       mockExecAsync.mockRejectedValue(new Error('tar: corrupted file'));
@@ -231,12 +237,15 @@ describe('main', () => {
 
       // Mock cache directory and file existence
       mockFs.existsSync.mockImplementation((path: string) => {
-        if (path.includes('.cache/github-actions-local-cache')) return true;
-        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz') return true;
+        if (path.endsWith('.lock')) return false; // No lock file
         return false;
       });
 
       mockFs.statSync.mockReturnValue({ size: 0 }); // Empty file
+      mockFs.writeFileSync.mockImplementation(() => {}); // Lock file creation
+      mockFs.unlinkSync.mockImplementation(() => {}); // File deletion
 
       await run();
 
@@ -254,16 +263,26 @@ describe('main', () => {
       };
       mockGetInputs.mockReturnValue(inputs);
 
+      // Track created lock files
+      const createdLockFiles = new Set<string>();
+      
       // Mock cache directory and file existence
       mockFs.existsSync.mockImplementation((path: string) => {
-        if (path.includes('.cache/github-actions-local-cache')) return true;
-        if (path.includes('mocked-hash-1.tar.gz')) return true;
-        if (path.includes('.lock')) return false; // No existing lock
+        if (path === '/home/runner/.cache/github-actions-local-cache') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz') return true;
+        if (path.endsWith('.lock')) return createdLockFiles.has(path); // Lock exists if created
         return false;
+      });
+      
+      // Track lock file creation
+      mockFs.writeFileSync.mockImplementation((path: string, data: any) => {
+        if (path.endsWith('.lock')) {
+          createdLockFiles.add(path);
+        }
       });
 
       mockFs.statSync.mockReturnValue({ size: 1024 });
-      mockFs.writeFileSync.mockImplementation(() => {}); // Mock lock file creation
+      mockFs.unlinkSync.mockImplementation(() => {}); // Mock lock file removal
 
       // Mock execAsync for integrity check and extraction
       mockExecAsync.mockImplementation((cmd: string) => {
@@ -295,9 +314,9 @@ describe('main', () => {
 
       let lockCheckCount = 0;
       mockFs.existsSync.mockImplementation((path: string) => {
-        if (path.includes('.cache/github-actions-local-cache')) return true;
-        if (path.includes('mocked-hash-1.tar.gz')) return true;
-        if (path.includes('.lock')) {
+        if (path === '/home/runner/.cache/github-actions-local-cache') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz.lock') {
           lockCheckCount++;
           return lockCheckCount <= 2; // Lock exists for first 2 checks, then released
         }
@@ -306,6 +325,7 @@ describe('main', () => {
 
       mockFs.statSync.mockReturnValue({ size: 1024 });
       mockFs.writeFileSync.mockImplementation(() => {}); // Mock lock file creation
+      mockFs.unlinkSync.mockImplementation(() => {}); // Mock lock file removal
 
       // Mock execAsync for integrity check and extraction
       mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
@@ -331,21 +351,22 @@ describe('main', () => {
 
       // Mock a stale lock that never gets released
       mockFs.existsSync.mockImplementation((path: string) => {
-        if (path.includes('.cache/github-actions-local-cache')) return true;
-        if (path.includes('mocked-hash-1.tar.gz')) return true;
-        if (path.includes('.lock')) return true; // Lock always exists (stale)
+        if (path === '/home/runner/.cache/github-actions-local-cache') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz.lock') return true; // Lock always exists (stale)
         return false;
       });
 
       mockFs.statSync.mockReturnValue({ size: 1024 });
       mockFs.writeFileSync.mockImplementation(() => {}); // Mock lock file creation
+      mockFs.unlinkSync.mockImplementation(() => {}); // Mock lock file removal
 
       // Mock Date.now to simulate timeout
       const originalDateNow = Date.now;
       let callCount = 0;
       Date.now = jest.fn(() => {
         callCount++;
-        return originalDateNow() + (callCount > 1 ? 35000 : 0); // Simulate timeout after first call
+        return originalDateNow() + (callCount > 1 ? 65000 : 0); // Simulate timeout after first call (65s > 60s timeout)
       });
 
       // Mock execAsync for integrity check and extraction
@@ -371,21 +392,25 @@ describe('main', () => {
       mockGetInputs.mockReturnValue(inputs);
 
       let lockAcquired = false;
+      const createdLockFiles = new Set<string>();
+      
       mockFs.existsSync.mockImplementation((path: string) => {
-        if (path.includes('.cache/github-actions-local-cache')) return true;
-        if (path.includes('mocked-hash-1.tar.gz')) {
+        if (path === '/home/runner/.cache/github-actions-local-cache') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz') {
           // Cache file exists initially, but disappears after lock is acquired
           return !lockAcquired;
         }
-        if (path.includes('.lock')) return false; // No existing lock
+        if (path.endsWith('.lock')) return createdLockFiles.has(path); // Lock exists if created
         return false;
       });
 
       mockFs.writeFileSync.mockImplementation((path: string) => {
         if (path.includes('.lock')) {
           lockAcquired = true; // Mark lock as acquired
+          createdLockFiles.add(path);
         }
       });
+      mockFs.unlinkSync.mockImplementation(() => {}); // Mock lock file removal
 
       mockFs.statSync.mockReturnValue({ size: 1024 });
 
@@ -408,9 +433,9 @@ describe('main', () => {
       mockGetInputs.mockReturnValue(inputs);
 
       mockFs.existsSync.mockImplementation((path: string) => {
-        if (path.includes('.cache/github-actions-local-cache')) return true;
-        if (path.includes('mocked-hash-1.tar.gz')) return true;
-        if (path.includes('.lock')) return false; // No existing lock
+        if (path === '/home/runner/.cache/github-actions-local-cache') return true;
+        if (path === '/home/runner/.cache/github-actions-local-cache/mocked-hash-1.tar.gz') return true;
+        if (path.endsWith('.lock')) return false; // No existing lock
         return false;
       });
 

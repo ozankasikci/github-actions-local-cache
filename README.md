@@ -22,7 +22,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache dependencies
-  uses: ozankasikci/github-actions-local-cache@v1.4.1  # or @v1 for latest
+  uses: ozankasikci/github-actions-local-cache@v1.4.2  # or @v1 for latest
   with:
     path: |
       ~/.npm
