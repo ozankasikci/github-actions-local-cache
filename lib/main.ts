@@ -36,7 +36,7 @@ async function run(): Promise<void> {
 
         // Simple lock file approach to prevent race conditions
         const lockFile = `${cacheFile}.lock`;
-        const lockTimeout = 30000; // 30 seconds
+        const lockTimeout = 60000; // 60 seconds
         const lockStart = Date.now();
 
         // Wait for any existing lock to be released
