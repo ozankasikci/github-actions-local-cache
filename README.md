@@ -1,7 +1,7 @@
 # Local Runner Cache
 
 [![CI](https://github.com/ozankasikci/github-actions-local-cache/actions/workflows/ci.yml/badge.svg)](https://github.com/ozankasikci/github-actions-local-cache/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen.svg)](https://github.com/ozankasikci/github-actions-local-cache)
+[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)](https://github.com/ozankasikci/github-actions-local-cache)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
