@@ -28,7 +28,7 @@ describe('post', () => {
 
       await run();
 
-      expect(mockCore.info).toHaveBeenCalledWith('Exact cache hit occurred, skipping cache save');
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Exact cache hit occurred, skipping cache save'));
       expect(mockExecAsync).not.toHaveBeenCalled();
     });
 
@@ -55,9 +55,9 @@ describe('post', () => {
 
       await run();
 
-      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache save operation...');
-      expect(mockCore.info).toHaveBeenCalledWith('Will cache node_modules (directory)');
-      expect(mockCore.info).toHaveBeenCalledWith('Will cache .cache (directory)');
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('LOCAL CACHE SAVE OPERATION'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache node_modules (directory)'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache .cache (directory)'));
     });
 
     it('should attempt to save cache when no exact match occurred', async () => {
@@ -82,8 +82,8 @@ describe('post', () => {
 
       await run();
 
-      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache save operation...');
-      expect(mockCore.info).toHaveBeenCalledWith('Will cache package.json (file)');
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('LOCAL CACHE SAVE OPERATION'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache package.json (file)'));
     });
 
     it('should use atomic file operations with temp files', async () => {
@@ -193,8 +193,8 @@ describe('post', () => {
 
       await run();
 
-      expect(mockCore.warning).toHaveBeenCalledWith('Path does not exist, skipping: non-existent-path');
-      expect(mockCore.info).toHaveBeenCalledWith('No existing paths to cache, skipping cache save');
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Path does not exist, skipping: non-existent-path'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('No existing paths to cache, skipping cache save'));
       expect(mockExecAsync).not.toHaveBeenCalled();
     });
 
@@ -223,7 +223,7 @@ describe('post', () => {
       await run();
 
       expect(mockFs.mkdirSync).toHaveBeenCalledWith('/tmp/.local-cache', { recursive: true });
-      expect(mockCore.info).toHaveBeenCalledWith('Created cache directory: /tmp/.local-cache');
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Created cache directory: /tmp/.local-cache'));
     });
   });
 
@@ -324,8 +324,8 @@ describe('post', () => {
 
       await run();
 
-      expect(mockCore.info).toHaveBeenCalledWith('Will cache package.json (file)');
-      expect(mockCore.info).toHaveBeenCalledWith('Will cache node_modules (directory)');
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache package.json (file)'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache node_modules (directory)'));
     });
   });
 });

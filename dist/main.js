@@ -1,6 +1,253 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 2553:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Logger = exports.logger = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+// ANSI color codes for terminal colors
+const colors = {
+    reset: '\x1b[0m',
+    bright: '\x1b[1m',
+    dim: '\x1b[2m',
+    // Standard colors
+    black: '\x1b[30m',
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m',
+    magenta: '\x1b[35m',
+    cyan: '\x1b[36m',
+    white: '\x1b[37m',
+    // Background colors
+    bgBlack: '\x1b[40m',
+    bgRed: '\x1b[41m',
+    bgGreen: '\x1b[42m',
+    bgYellow: '\x1b[43m',
+    bgBlue: '\x1b[44m',
+    bgMagenta: '\x1b[45m',
+    bgCyan: '\x1b[46m',
+    bgWhite: '\x1b[47m',
+    // Bright colors
+    brightBlack: '\x1b[90m',
+    brightRed: '\x1b[91m',
+    brightGreen: '\x1b[92m',
+    brightYellow: '\x1b[93m',
+    brightBlue: '\x1b[94m',
+    brightMagenta: '\x1b[95m',
+    brightCyan: '\x1b[96m',
+    brightWhite: '\x1b[97m',
+};
+// Emoji and symbols for different log levels
+const symbols = {
+    info: '🔹',
+    success: '✅',
+    warning: '⚠️',
+    error: '❌',
+    debug: '🔍',
+    cache: '💾',
+    lock: '🔒',
+    checksum: '🔐',
+    timer: '⏱️',
+    archive: '📦',
+    cleanup: '🧹',
+    network: '🌐',
+};
+const logLevels = {
+    info: {
+        symbol: symbols.info,
+        color: colors.brightBlue,
+        coreMethod: core.info,
+    },
+    success: {
+        symbol: symbols.success,
+        color: colors.brightGreen,
+        coreMethod: core.info,
+    },
+    warning: {
+        symbol: symbols.warning,
+        color: colors.brightYellow,
+        coreMethod: core.warning,
+    },
+    error: {
+        symbol: symbols.error,
+        color: colors.brightRed,
+        coreMethod: core.error,
+    },
+    debug: {
+        symbol: symbols.debug,
+        color: colors.brightMagenta,
+        coreMethod: core.debug,
+    },
+};
+class Logger {
+    constructor() {
+        // Detect if running in GitHub Actions environment
+        this.isGitHubActions = !!process.env.GITHUB_ACTIONS;
+    }
+    formatMessage(level, message, category) {
+        const logLevel = logLevels[level];
+        if (!logLevel)
+            return message;
+        const timestamp = new Date().toISOString().substring(11, 23); // HH:mm:ss.SSS
+        const prefix = category ? `[${category}]` : '';
+        if (this.isGitHubActions) {
+            // For GitHub Actions, use simple format without ANSI colors
+            return `${logLevel.symbol} ${prefix} ${message}`;
+        }
+        else {
+            // For local development, use colorized format
+            const coloredLevel = `${logLevel.color}${logLevel.symbol}${colors.reset}`;
+            const coloredTime = `${colors.dim}${timestamp}${colors.reset}`;
+            const coloredPrefix = prefix ? `${colors.cyan}${prefix}${colors.reset} ` : '';
+            return `${coloredTime} ${coloredLevel} ${coloredPrefix}${message}`;
+        }
+    }
+    log(level, message, category) {
+        const logLevel = logLevels[level];
+        if (!logLevel) {
+            console.log(message);
+            return;
+        }
+        const formattedMessage = this.formatMessage(level, message, category);
+        logLevel.coreMethod(formattedMessage);
+    }
+    // Basic log levels
+    info(message, category) {
+        this.log('info', message, category);
+    }
+    success(message, category) {
+        this.log('success', message, category);
+    }
+    warning(message, category) {
+        this.log('warning', message, category);
+    }
+    error(message, category) {
+        this.log('error', message, category);
+    }
+    debug(message, category) {
+        this.log('debug', message, category);
+    }
+    // Specialized logging methods for different operations
+    cache(message) {
+        this.info(`${symbols.cache} ${message}`, 'CACHE');
+    }
+    lock(message) {
+        this.info(`${symbols.lock} ${message}`, 'LOCK');
+    }
+    checksum(message) {
+        this.info(`${symbols.checksum} ${message}`, 'CHECKSUM');
+    }
+    archive(message) {
+        this.info(`${symbols.archive} ${message}`, 'ARCHIVE');
+    }
+    cleanup(message) {
+        this.info(`${symbols.cleanup} ${message}`, 'CLEANUP');
+    }
+    timer(message, timeMs) {
+        const timeStr = timeMs ? ` (${timeMs}ms)` : '';
+        this.info(`${symbols.timer} ${message}${timeStr}`, 'TIMER');
+    }
+    // Utility methods for formatted output
+    separator(title) {
+        const line = '─'.repeat(50);
+        if (title) {
+            const paddedTitle = ` ${title} `;
+            const titleLength = paddedTitle.length;
+            const leftPadding = Math.floor((50 - titleLength) / 2);
+            const rightPadding = 50 - titleLength - leftPadding;
+            const formattedLine = '─'.repeat(leftPadding) + paddedTitle + '─'.repeat(rightPadding);
+            this.info(formattedLine);
+        }
+        else {
+            this.info(line);
+        }
+    }
+    header(title) {
+        this.info('');
+        this.separator(title.toUpperCase());
+    }
+    footer() {
+        this.separator();
+        this.info('');
+    }
+    // Progress and status indicators
+    progress(message, current, total) {
+        const percentage = Math.round((current / total) * 100);
+        const progressBar = this.createProgressBar(percentage);
+        this.info(`${message} ${progressBar} ${current}/${total} (${percentage}%)`);
+    }
+    createProgressBar(percentage, width = 20) {
+        const filled = Math.round((percentage / 100) * width);
+        const empty = width - filled;
+        return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
+    }
+    // File size formatting
+    fileSize(message, sizeBytes) {
+        const formattedSize = this.formatBytes(sizeBytes);
+        this.info(`${message} ${formattedSize}`);
+    }
+    formatBytes(bytes) {
+        if (bytes === 0)
+            return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    }
+    // Performance timing
+    startTimer() {
+        const start = Date.now();
+        return () => {
+            const elapsed = Date.now() - start;
+            return elapsed;
+        };
+    }
+}
+exports.Logger = Logger;
+// Export singleton instance
+exports.logger = new Logger();
+//# sourceMappingURL=logger.js.map
+
+/***/ }),
+
 /***/ 7160:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -43,6 +290,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
 const utils_1 = __nccwpck_require__(9236);
+const logger_1 = __nccwpck_require__(2553);
 const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
 const crypto = __importStar(__nccwpck_require__(6982));
@@ -51,15 +299,15 @@ async function run() {
         const inputs = (0, utils_1.getInputs)();
         (0, utils_1.validateInputs)(inputs);
         (0, utils_1.logInputs)(inputs);
-        core.info('Starting local cache restore operation...');
-        core.info(`Paths to cache: ${inputs.paths.join(', ')}`);
-        core.info(`Primary key: ${inputs.primaryKey}`);
-        core.info(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
+        logger_1.logger.header('Local Cache Restore Operation');
+        logger_1.logger.cache(`Paths to cache: ${inputs.paths.join(', ')}`);
+        logger_1.logger.cache(`Primary key: ${inputs.primaryKey}`);
+        logger_1.logger.cache(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
         // Create local cache directory in user's cache space (persistent)
         const cacheDir = (0, utils_1.getCacheDir)(inputs);
         if (!fs.existsSync(cacheDir)) {
             fs.mkdirSync(cacheDir, { recursive: true });
-            core.info(`Created local cache directory: ${cacheDir}`);
+            logger_1.logger.success(`Created local cache directory: ${cacheDir}`);
         }
         // Try to find existing cache using primary key or restore keys
         const keysToTry = [inputs.primaryKey, ...(inputs.restoreKeys || [])];
@@ -69,7 +317,7 @@ async function run() {
             const keyHash = crypto.createHash('sha256').update(key).digest('hex');
             const cacheFile = path.join(cacheDir, `${keyHash}.tar.gz`);
             if (fs.existsSync(cacheFile)) {
-                core.info(`Found local cache file for key: ${key}`);
+                logger_1.logger.cache(`Found local cache file for key: ${key}`);
                 // Simple lock file approach to prevent race conditions
                 const lockFile = `${cacheFile}.lock`;
                 const lockTimeout = 60000; // 60 seconds
@@ -77,7 +325,7 @@ async function run() {
                 // Wait for any existing lock to be released
                 while (fs.existsSync(lockFile)) {
                     if (Date.now() - lockStart > lockTimeout) {
-                        core.warning(`Lock timeout exceeded for ${cacheFile}, breaking lock`);
+                        logger_1.logger.warning(`Lock timeout exceeded for ${cacheFile}, breaking lock`);
                         try {
                             fs.unlinkSync(lockFile);
                         }
@@ -93,19 +341,19 @@ async function run() {
                     fs.writeFileSync(lockFile, process.pid.toString());
                 }
                 catch (lockError) {
-                    core.warning(`Failed to create lock file: ${lockError}`);
+                    logger_1.logger.warning(`Failed to create lock file: ${lockError}`, 'LOCK');
                     continue;
                 }
                 let cacheProcessed = false;
                 try {
                     // Double-check cache file still exists after acquiring lock
                     if (!fs.existsSync(cacheFile)) {
-                        core.warning(`Cache file was removed by another process: ${cacheFile}`);
+                        logger_1.logger.warning(`Cache file was removed by another process: ${cacheFile}`, 'CACHE');
                     }
                     else {
                         const stats = fs.statSync(cacheFile);
                         if (stats.size === 0) {
-                            core.warning(`Cache file is empty, removing: ${cacheFile}`);
+                            logger_1.logger.warning(`Cache file is empty, removing: ${cacheFile}`, 'CACHE');
                             fs.unlinkSync(cacheFile);
                         }
                         else {
@@ -113,33 +361,38 @@ async function run() {
                             const { exec } = __nccwpck_require__(5317);
                             const util = __nccwpck_require__(9023);
                             const execAsync = util.promisify(exec);
-                            core.info(`Verifying cache file integrity: ${cacheFile}`);
-                            // Quick integrity check without listing all files (to avoid buffer overflow)
-                            core.info(`Performing quick integrity check...`);
+                            logger_1.logger.checksum(`Verifying cache file integrity: ${cacheFile}`);
+                            // First check: Verify checksum if available
+                            const checksumValid = await (0, utils_1.verifyChecksum)(cacheFile);
+                            if (!checksumValid) {
+                                logger_1.logger.warning('Checksum verification failed, falling back to basic integrity check', 'CHECKSUM');
+                            }
+                            // Second check: Quick tar integrity check without listing all files (to avoid buffer overflow)
+                            logger_1.logger.archive(`Performing tar structure check...`);
                             await execAsync(`tar -tzf "${cacheFile}" | head -n 1 > /dev/null`);
                             matchedKey = key;
                             cacheHit = key === inputs.primaryKey;
                             // Extract cache to restore the files
-                            core.info(`Extracting cache from: ${cacheFile}`);
-                            core.info(`Extracting to root directory: /`);
+                            logger_1.logger.archive(`Extracting cache from: ${cacheFile}`);
+                            logger_1.logger.archive(`Extracting to root directory: /`);
                             await execAsync(`tar -xzf "${cacheFile}" -C /`);
-                            core.info(`Cache restored successfully to root directory`);
+                            logger_1.logger.success(`Cache restored successfully to root directory`, 'CACHE');
                             cacheProcessed = true;
                         }
                     }
                 }
                 catch (error) {
-                    core.warning(`Cache file is corrupted or invalid: ${cacheFile}`);
-                    core.warning(`Error: ${error}`);
+                    logger_1.logger.warning(`Cache file is corrupted or invalid: ${cacheFile}`, 'CACHE');
+                    logger_1.logger.error(`Error: ${error}`, 'CACHE');
                     // Remove corrupted cache file to prevent future issues
                     try {
                         if (fs.existsSync(cacheFile)) {
                             fs.unlinkSync(cacheFile);
-                            core.info(`Removed corrupted cache file: ${cacheFile}`);
+                            logger_1.logger.cleanup(`Removed corrupted cache file: ${cacheFile}`);
                         }
                     }
                     catch (unlinkError) {
-                        core.warning(`Failed to remove corrupted cache file: ${unlinkError}`);
+                        logger_1.logger.warning(`Failed to remove corrupted cache file: ${unlinkError}`, 'CLEANUP');
                     }
                 }
                 finally {
@@ -150,7 +403,7 @@ async function run() {
                         }
                     }
                     catch (lockError) {
-                        core.warning(`Failed to remove lock file: ${lockError}`);
+                        logger_1.logger.warning(`Failed to remove lock file: ${lockError}`, 'LOCK');
                     }
                 }
                 if (cacheProcessed) {
@@ -159,13 +412,13 @@ async function run() {
             }
         }
         if (matchedKey) {
-            core.info(`Cache restored from key: ${matchedKey}`);
+            logger_1.logger.success(`Cache restored from key: ${matchedKey}`, 'CACHE');
             core.setOutput('cache-hit', cacheHit.toString());
             core.setOutput('cache-primary-key', inputs.primaryKey);
             core.setOutput('cache-matched-key', matchedKey);
         }
         else {
-            core.info('No local cache found');
+            logger_1.logger.info('No local cache found', 'CACHE');
             core.setOutput('cache-hit', 'false');
             core.setOutput('cache-primary-key', inputs.primaryKey);
             core.setOutput('cache-matched-key', '');
@@ -177,7 +430,8 @@ async function run() {
         core.saveState('upload-chunk-size', inputs.uploadChunkSize?.toString() || '');
         core.saveState('enable-cross-os-archive', inputs.enableCrossOsArchive.toString());
         core.saveState('cache-dir', cacheDir);
-        core.info('Local cache operation completed successfully');
+        logger_1.logger.success('Local cache operation completed successfully');
+        logger_1.logger.footer();
     }
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -235,9 +489,15 @@ exports.validateInputs = validateInputs;
 exports.getDefaultCacheDir = getDefaultCacheDir;
 exports.getCacheDir = getCacheDir;
 exports.logInputs = logInputs;
+exports.generateFileChecksum = generateFileChecksum;
+exports.saveChecksum = saveChecksum;
+exports.verifyChecksum = verifyChecksum;
 const core = __importStar(__nccwpck_require__(7484));
 const path = __importStar(__nccwpck_require__(6928));
 const os = __importStar(__nccwpck_require__(857));
+const fs = __importStar(__nccwpck_require__(9896));
+const crypto = __importStar(__nccwpck_require__(6982));
+const logger_1 = __nccwpck_require__(2553);
 function getInputs() {
     const paths = core.getInput('path', { required: true });
     const primaryKey = core.getInput('key', { required: true });
@@ -303,6 +563,56 @@ function logInputs(inputs) {
     }
     const cacheDir = getCacheDir(inputs);
     core.info(`Cache directory: ${cacheDir}`);
+}
+/**
+ * Generate SHA-256 checksum of a file
+ */
+async function generateFileChecksum(filePath) {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash('sha256');
+        const stream = fs.createReadStream(filePath);
+        stream.on('error', reject);
+        stream.on('data', (chunk) => hash.update(chunk));
+        stream.on('end', () => resolve(hash.digest('hex')));
+    });
+}
+/**
+ * Save checksum to a file alongside the cache file
+ */
+async function saveChecksum(cacheFile, checksum) {
+    const checksumFile = `${cacheFile}.sha256`;
+    await fs.promises.writeFile(checksumFile, `${checksum}  ${path.basename(cacheFile)}\n`);
+    logger_1.logger.checksum(`Saved checksum to: ${checksumFile}`);
+}
+/**
+ * Load and verify checksum from file
+ */
+async function verifyChecksum(cacheFile) {
+    const checksumFile = `${cacheFile}.sha256`;
+    if (!fs.existsSync(checksumFile)) {
+        logger_1.logger.warning(`Checksum file not found: ${checksumFile}`, 'CHECKSUM');
+        return false;
+    }
+    try {
+        const checksumContent = await fs.promises.readFile(checksumFile, 'utf8');
+        const expectedChecksum = checksumContent.split(' ')[0]?.trim();
+        logger_1.logger.checksum(`Verifying checksum for: ${cacheFile}`);
+        const actualChecksum = await generateFileChecksum(cacheFile);
+        if (expectedChecksum && expectedChecksum === actualChecksum) {
+            logger_1.logger.success('✅ Checksum verification passed', 'CHECKSUM');
+            return true;
+        }
+        else {
+            logger_1.logger.warning('❌ Checksum verification failed', 'CHECKSUM');
+            logger_1.logger.warning(`Expected: ${expectedChecksum}`, 'CHECKSUM');
+            logger_1.logger.warning(`Actual: ${actualChecksum}`, 'CHECKSUM');
+            return false;
+        }
+    }
+    catch (error) {
+        logger_1.logger.warning(`Failed to verify checksum: ${error}`, 'CHECKSUM');
+        return false;
+    }
 }
 //# sourceMappingURL=utils.js.map
 
