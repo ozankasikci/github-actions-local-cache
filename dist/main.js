@@ -70,8 +70,38 @@ async function run() {
             const cacheFile = path.join(cacheDir, `${keyHash}.tar.gz`);
             if (fs.existsSync(cacheFile)) {
                 core.info(`Found local cache file for key: ${key}`);
-                // Verify cache file integrity before attempting extraction
+                // Simple lock file approach to prevent race conditions
+                const lockFile = `${cacheFile}.lock`;
+                const lockTimeout = 30000; // 30 seconds
+                const lockStart = Date.now();
+                // Wait for any existing lock to be released
+                while (fs.existsSync(lockFile)) {
+                    if (Date.now() - lockStart > lockTimeout) {
+                        core.warning(`Lock timeout exceeded for ${cacheFile}, breaking lock`);
+                        try {
+                            fs.unlinkSync(lockFile);
+                        }
+                        catch {
+                            // Ignore error if lock file was already removed
+                        }
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms
+                }
+                // Create lock file
                 try {
+                    fs.writeFileSync(lockFile, process.pid.toString());
+                }
+                catch (lockError) {
+                    core.warning(`Failed to create lock file: ${lockError}`);
+                    continue;
+                }
+                try {
+                    // Double-check cache file still exists after acquiring lock
+                    if (!fs.existsSync(cacheFile)) {
+                        core.warning(`Cache file was removed by another process: ${cacheFile}`);
+                        continue;
+                    }
                     const stats = fs.statSync(cacheFile);
                     if (stats.size === 0) {
                         core.warning(`Cache file is empty, removing: ${cacheFile}`);
@@ -83,17 +113,13 @@ async function run() {
                     const util = __nccwpck_require__(9023);
                     const execAsync = util.promisify(exec);
                     core.info(`Verifying cache file integrity: ${cacheFile}`);
-                    await execAsync(`tar -tzf "${cacheFile}" > /dev/null`);
+                    // Quick integrity check without listing all files (to avoid buffer overflow)
+                    core.info(`Performing quick integrity check...`);
+                    await execAsync(`tar -tzf "${cacheFile}" | head -n 1 > /dev/null`);
                     matchedKey = key;
                     cacheHit = key === inputs.primaryKey;
                     // Extract cache to restore the files
                     core.info(`Extracting cache from: ${cacheFile}`);
-                    // First, list what will be extracted to show the structure
-                    const listResult = await execAsync(`tar -tzf "${cacheFile}"`);
-                    const extractedPaths = listResult.stdout.trim().split('\n').slice(0, 10); // Show first 10 paths
-                    core.info(`Cache contains ${listResult.stdout.trim().split('\n').length} files/directories`);
-                    core.info(`Sample paths: ${extractedPaths.join(', ')}`);
-                    // Extract to root directory
                     core.info(`Extracting to root directory: /`);
                     await execAsync(`tar -xzf "${cacheFile}" -C /`);
                     core.info(`Cache restored successfully to root directory`);
@@ -104,13 +130,26 @@ async function run() {
                     core.warning(`Error: ${error}`);
                     // Remove corrupted cache file to prevent future issues
                     try {
-                        fs.unlinkSync(cacheFile);
-                        core.info(`Removed corrupted cache file: ${cacheFile}`);
+                        if (fs.existsSync(cacheFile)) {
+                            fs.unlinkSync(cacheFile);
+                            core.info(`Removed corrupted cache file: ${cacheFile}`);
+                        }
                     }
                     catch (unlinkError) {
                         core.warning(`Failed to remove corrupted cache file: ${unlinkError}`);
                     }
                     continue;
+                }
+                finally {
+                    // Always remove lock file
+                    try {
+                        if (fs.existsSync(lockFile)) {
+                            fs.unlinkSync(lockFile);
+                        }
+                    }
+                    catch (lockError) {
+                        core.warning(`Failed to remove lock file: ${lockError}`);
+                    }
                 }
             }
         }
