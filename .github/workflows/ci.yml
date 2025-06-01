@@ -34,6 +34,18 @@ jobs:
 
     - name: Update coverage badge
       run: npm run update-badge
+      
+    - name: Commit coverage badge update
+      run: |
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add README.md
+        if git diff --staged --quiet; then
+          echo "No coverage badge changes to commit"
+        else
+          git commit -m "Update coverage badge [skip ci]"
+          git push
+        fi
 
     - name: Build TypeScript
       run: npm run build:ts
