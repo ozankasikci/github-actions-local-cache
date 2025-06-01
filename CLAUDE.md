@@ -46,6 +46,8 @@ This file contains important development practices and reminders for this projec
 - CI workflow has `contents: write` permission to update coverage badge
 - Uses `GITHUB_TOKEN` for authentication when committing badge updates
 - Coverage badge commits use `[skip ci]` to prevent infinite loops
+- Badge updates only run on Node 20 to avoid race conditions between matrix jobs
+- Handles push conflicts by pulling and rebasing if initial push fails
 
 ## Notes
 
