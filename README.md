@@ -127,6 +127,20 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
       ${{ runner.os }}-gradle-
 ```
 
+## Development
+
+### Release Process
+
+1. Update version in `package.json`
+2. Create and push a git tag: `git tag v1.x.x && git push origin v1.x.x`
+3. The GitHub Actions workflow will automatically:
+   - Run tests and linting
+   - Build the action
+   - Create a release branch with built files
+   - Publish the GitHub release
+
+Users can then reference the action using the tag (e.g., `@v1.5.0`) and get the pre-built files from the release branch.
+
 ## License
 
 MIT
