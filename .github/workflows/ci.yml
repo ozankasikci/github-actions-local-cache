@@ -37,9 +37,11 @@ jobs:
       run: npm run test:coverage
 
     - name: Update coverage badge
+      if: matrix.node-version == '20'
       run: npm run update-badge
       
     - name: Commit coverage badge update
+      if: matrix.node-version == '20'
       run: |
         git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
@@ -48,7 +50,8 @@ jobs:
           echo "No coverage badge changes to commit"
         else
           git commit -m "Update coverage badge [skip ci]"
-          git push
+          # Try to push, retry with pull if needed
+          git push || (git pull --rebase origin main && git push)
         fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
