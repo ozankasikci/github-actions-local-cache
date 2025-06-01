@@ -19,6 +19,8 @@ describe('utils', () => {
             return '1024';
           case 'enableCrossOsArchive':
             return 'true';
+          case 'lock-timeout':
+            return '30';
           default:
             return '';
         }
@@ -32,6 +34,7 @@ describe('utils', () => {
         restoreKeys: ['fallback-1', 'fallback-2'],
         uploadChunkSize: 1024,
         enableCrossOsArchive: true,
+        lockTimeout: 30,
       });
     });
 
@@ -105,6 +108,44 @@ describe('utils', () => {
 
       expect(inputs.uploadChunkSize).toBeUndefined();
     });
+
+    it('should use default lock timeout when not specified', () => {
+      mockCore.getInput.mockImplementation((name: string) => {
+        switch (name) {
+          case 'path':
+            return 'node_modules';
+          case 'key':
+            return 'test-key';
+          case 'lock-timeout':
+            return '';
+          default:
+            return '';
+        }
+      });
+
+      const inputs = getInputs();
+
+      expect(inputs.lockTimeout).toBe(60); // Default 60 seconds
+    });
+
+    it('should parse custom lock timeout', () => {
+      mockCore.getInput.mockImplementation((name: string) => {
+        switch (name) {
+          case 'path':
+            return 'node_modules';
+          case 'key':
+            return 'test-key';
+          case 'lock-timeout':
+            return '120';
+          default:
+            return '';
+        }
+      });
+
+      const inputs = getInputs();
+
+      expect(inputs.lockTimeout).toBe(120);
+    });
   });
 
   describe('validateInputs', () => {
@@ -142,6 +183,28 @@ describe('utils', () => {
       expect(() => validateInputs(inputs)).toThrow('Upload chunk size must be a positive number');
     });
 
+    it('should throw error for negative lock timeout', () => {
+      const inputs = {
+        paths: ['node_modules'],
+        primaryKey: 'test-key',
+        lockTimeout: -30,
+        enableCrossOsArchive: false,
+      };
+
+      expect(() => validateInputs(inputs)).toThrow('Lock timeout must be a positive number');
+    });
+
+    it('should throw error for zero lock timeout', () => {
+      const inputs = {
+        paths: ['node_modules'],
+        primaryKey: 'test-key',
+        lockTimeout: 0,
+        enableCrossOsArchive: false,
+      };
+
+      expect(() => validateInputs(inputs)).toThrow('Lock timeout must be a positive number');
+    });
+
     it('should throw error for paths containing ..', () => {
       const inputs = {
         paths: ['node_modules', '../malicious'],
@@ -171,6 +234,7 @@ describe('utils', () => {
         restoreKeys: ['fallback-1', 'fallback-2'],
         uploadChunkSize: 1024,
         enableCrossOsArchive: true,
+        lockTimeout: 120,
       };
 
       logInputs(inputs);
@@ -180,6 +244,7 @@ describe('utils', () => {
       expect(mockCore.info).toHaveBeenCalledWith('Restore keys: fallback-1, fallback-2');
       expect(mockCore.info).toHaveBeenCalledWith('Upload chunk size: 1024 bytes');
       expect(mockCore.info).toHaveBeenCalledWith('Cross-OS archive enabled');
+      expect(mockCore.info).toHaveBeenCalledWith('Lock timeout: 120 seconds');
     });
 
     it('should log minimal information when optional fields are missing', () => {

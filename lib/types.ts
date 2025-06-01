@@ -10,6 +10,7 @@ export interface CacheInputs {
   uploadChunkSize?: number;
   enableCrossOsArchive: boolean;
   cacheDir?: string;
+  lockTimeout?: number;
 }
 
 export interface CacheState {
