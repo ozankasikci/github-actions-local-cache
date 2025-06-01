@@ -7,6 +7,13 @@
 
 A GitHub Action for caching files and folders locally on the runner to speed up your workflows.
 
+## 🚀 What's New in v1.2.0
+
+- **🔒 Atomic File Operations** - Prevents cache corruption during concurrent access
+- **🛡️ Cache Integrity Checks** - Verifies cache files before extraction
+- **🧹 Auto-Cleanup** - Removes corrupted/empty cache files automatically
+- **⚡ Enhanced Reliability** - Improved error handling and temp file management
+
 ## Features
 
 - Cache any files or directories
@@ -21,7 +28,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache dependencies
-  uses: ozankasikci/github-actions-local-cache@v1
+  uses: ozankasikci/github-actions-local-cache@v1.2.0  # or @v1 for latest
   with:
     path: |
       ~/.npm
