@@ -33,21 +33,43 @@ async function run(): Promise<void> {
 
       if (fs.existsSync(cacheFile)) {
         core.info(`Found local cache file for key: ${key}`);
-        matchedKey = key;
-        cacheHit = key === inputs.primaryKey;
-
-        // Extract cache to restore the files
-        const { exec } = require('child_process');
-        const util = require('util');
-        const execAsync = util.promisify(exec);
-
+        
+        // Verify cache file integrity before attempting extraction
         try {
+          const stats = fs.statSync(cacheFile);
+          if (stats.size === 0) {
+            core.warning(`Cache file is empty, removing: ${cacheFile}`);
+            fs.unlinkSync(cacheFile);
+            continue;
+          }
+
+          // Test cache file integrity using tar -tf (list without extracting)
+          const { exec } = require('child_process');
+          const util = require('util');
+          const execAsync = util.promisify(exec);
+          
+          core.info(`Verifying cache file integrity: ${cacheFile}`);
+          await execAsync(`tar -tzf "${cacheFile}" > /dev/null`);
+          
+          matchedKey = key;
+          cacheHit = key === inputs.primaryKey;
+
+          // Extract cache to restore the files
           core.info(`Extracting cache from: ${cacheFile}`);
           await execAsync(`tar -xzf "${cacheFile}" -C /`);
           core.info('Cache restored successfully');
           break;
-        } catch (extractError) {
-          core.warning(`Failed to extract cache: ${extractError}`);
+        } catch (error) {
+          core.warning(`Cache file is corrupted or invalid: ${cacheFile}`);
+          core.warning(`Error: ${error}`);
+          
+          // Remove corrupted cache file to prevent future issues
+          try {
+            fs.unlinkSync(cacheFile);
+            core.info(`Removed corrupted cache file: ${cacheFile}`);
+          } catch (unlinkError) {
+            core.warning(`Failed to remove corrupted cache file: ${unlinkError}`);
+          }
           continue;
         }
       }

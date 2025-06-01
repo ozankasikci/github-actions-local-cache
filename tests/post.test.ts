@@ -86,6 +86,80 @@ describe('post', () => {
       expect(mockCore.info).toHaveBeenCalledWith('Will cache package.json (file)');
     });
 
+    it('should use atomic file operations with temp files', async () => {
+      mockCore.getState.mockImplementation((key: string) => {
+        switch (key) {
+          case 'cache-primary-key': return 'test-key-123';
+          case 'cache-paths': return JSON.stringify(['package.json']);
+          case 'cache-matched-key': return '';
+          case 'cache-dir': return '/tmp/.local-cache';
+          default: return '';
+        }
+      });
+
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return true;
+        if (path === 'package.json') return true;
+        if (path.includes('.tmp.')) return true; // Mock temp file exists after creation
+        return false;
+      });
+
+      mockFs.statSync.mockImplementation((path: string) => {
+        if (path.includes('.tmp.')) {
+          return { size: 1024 }; // Temp file has content
+        }
+        return {
+          isDirectory: () => false,
+          size: 1024
+        };
+      });
+
+      // Mock fs.promises.rename for atomic operation
+      mockFs.promises.rename.mockResolvedValue(undefined);
+
+      await run();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Creating temporary cache file:'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Atomically moving cache file from'));
+      expect(mockFs.promises.rename).toHaveBeenCalled();
+    });
+
+    it('should cleanup temp files on error', async () => {
+      mockCore.getState.mockImplementation((key: string) => {
+        switch (key) {
+          case 'cache-primary-key': return 'test-key-123';
+          case 'cache-paths': return JSON.stringify(['package.json']);
+          case 'cache-matched-key': return '';
+          case 'cache-dir': return '/tmp/.local-cache';
+          default: return '';
+        }
+      });
+
+      mockFs.existsSync.mockImplementation((path: string) => {
+        if (path === '/tmp/.local-cache') return true;
+        if (path === 'package.json') return true;
+        if (path.includes('.tmp.')) return true; // Temp file exists for cleanup
+        return false;
+      });
+
+      mockFs.statSync.mockReturnValue({
+        isDirectory: () => false,
+        size: 1024
+      });
+
+      // Mock execAsync to fail
+      mockExecAsync.mockRejectedValue(new Error('tar command failed'));
+
+      // Mock fs.promises.unlink for cleanup
+      mockFs.promises.unlink.mockResolvedValue(undefined);
+
+      await run();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Failed to create cache archive:'));
+      expect(mockFs.promises.unlink).toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Cleaned up temporary file:'));
+    });
+
     it('should skip saving when no paths exist', async () => {
       mockCore.getState.mockImplementation((key: string) => {
         switch (key) {

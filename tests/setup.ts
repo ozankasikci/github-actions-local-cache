@@ -17,6 +17,11 @@ export const mockFs = {
   existsSync: jest.fn() as jest.MockedFunction<any>,
   statSync: jest.fn() as jest.MockedFunction<any>,
   mkdirSync: jest.fn() as jest.MockedFunction<any>,
+  unlinkSync: jest.fn() as jest.MockedFunction<any>,
+  promises: {
+    rename: jest.fn() as jest.MockedFunction<any>,
+    unlink: jest.fn() as jest.MockedFunction<any>,
+  },
 };
 
 // Mock child_process
@@ -74,6 +79,9 @@ export const resetMocks = (): void => {
   mockFs.existsSync.mockReset();
   mockFs.statSync.mockReset();
   mockFs.mkdirSync.mockReset();
+  mockFs.unlinkSync.mockReset();
+  mockFs.promises.rename.mockReset();
+  mockFs.promises.unlink.mockReset();
   
   mockChildProcess.exec.mockReset();
   mockCrypto.createHash.mockReset();
