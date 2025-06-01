@@ -41,6 +41,12 @@ This file contains important development practices and reminders for this projec
 2. Create git tag: `git tag v1.x.x && git push origin v1.x.x`
 3. GitHub Actions will automatically build and create release
 
+## CI/CD Notes
+
+- CI workflow has `contents: write` permission to update coverage badge
+- Uses `GITHUB_TOKEN` for authentication when committing badge updates
+- Coverage badge commits use `[skip ci]` to prevent infinite loops
+
 ## Notes
 
 - Always run linter before pushing to maintain code quality
