@@ -15,6 +15,8 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 - Flexible cache key generation
 - Cross-platform support
 - Restore fallback keys
+- Integrity verification with SHA-256 checksums
+- Concurrency protection with file locking
 
 ## Usage
 
@@ -22,7 +24,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache dependencies
-  uses: ozankasikci/github-actions-local-cache@v1.4.2  # or @v1 for latest
+  uses: ozankasikci/github-actions-local-cache@v1.5.0  # or @v1 for latest
   with:
     path: |
       ~/.npm

@@ -13,14 +13,16 @@ jest.mock('../lib/utils', () => ({
   validateInputs: jest.fn(),
   logInputs: jest.fn(),
   getCacheDir: jest.fn(() => '/home/runner/.cache/github-actions-local-cache'),
+  verifyChecksum: jest.fn(),
 }));
 
-import { getInputs, validateInputs, logInputs } from '../lib/utils';
+import { getInputs, validateInputs, logInputs, verifyChecksum } from '../lib/utils';
 import { run } from '../lib/main';
 
 const mockGetInputs = getInputs as jest.MockedFunction<typeof getInputs>;
 const mockValidateInputs = validateInputs as jest.MockedFunction<typeof validateInputs>;
 const mockLogInputs = logInputs as jest.MockedFunction<typeof logInputs>;
+const mockVerifyChecksum = verifyChecksum as jest.MockedFunction<typeof verifyChecksum>;
 
 describe('main', () => {
   beforeEach(() => {
@@ -29,6 +31,7 @@ describe('main', () => {
     mockGetInputs.mockReset();
     mockValidateInputs.mockReset();
     mockLogInputs.mockReset();
+    mockVerifyChecksum.mockReset();
     
     // Set up default environment
     process.env.RUNNER_TEMP = '/tmp';
@@ -55,7 +58,7 @@ describe('main', () => {
       expect(mockGetInputs).toHaveBeenCalled();
       expect(mockValidateInputs).toHaveBeenCalledWith(inputs);
       expect(mockLogInputs).toHaveBeenCalledWith(inputs);
-      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache restore operation...');
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('LOCAL CACHE RESTORE OPERATION'));
     });
 
     it('should log cache operation details', async () => {
@@ -70,10 +73,10 @@ describe('main', () => {
 
       await run();
 
-      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache restore operation...');
-      expect(mockCore.info).toHaveBeenCalledWith('Paths to cache: test-file.txt');
-      expect(mockCore.info).toHaveBeenCalledWith('Primary key: test-key');
-      expect(mockCore.info).toHaveBeenCalledWith('Restore keys: none');
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('LOCAL CACHE RESTORE OPERATION'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Paths to cache: test-file.txt'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Primary key: test-key'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Restore keys: none'));
     });
   });
 
@@ -136,7 +139,7 @@ describe('main', () => {
       expect(mockGetInputs).toHaveBeenCalled();
       expect(mockValidateInputs).toHaveBeenCalledWith(inputs);
       expect(mockLogInputs).toHaveBeenCalledWith(inputs);
-      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache restore operation...');
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('LOCAL CACHE RESTORE OPERATION'));
     });
 
     it('should handle complex input scenarios', async () => {
@@ -151,9 +154,9 @@ describe('main', () => {
 
       await run();
 
-      expect(mockCore.info).toHaveBeenCalledWith('Starting local cache restore operation...');
-      expect(mockCore.info).toHaveBeenCalledWith('Paths to cache: test.txt');
-      expect(mockCore.info).toHaveBeenCalledWith('Primary key: test');
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('LOCAL CACHE RESTORE OPERATION'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Paths to cache: test.txt'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Primary key: test'));
     });
 
     it('should verify cache integrity before extraction', async () => {
@@ -177,11 +180,18 @@ describe('main', () => {
 
       mockFs.statSync.mockReturnValue({ size: 1024 });
       mockFs.writeFileSync.mockImplementation(() => {}); // Lock file creation
+      mockFs.unlinkSync.mockImplementation(() => {}); // Lock file removal
+
+      // Mock checksum verification to fail so tar check runs
+      mockVerifyChecksum.mockResolvedValue(false);
 
       // Mock execAsync for integrity check and extraction
       mockExecAsync.mockImplementation((cmd: string) => {
         if (cmd.includes('tar -tzf')) {
           return Promise.resolve({ stdout: 'file1\nfile2\nfile3\n', stderr: '' });
+        }
+        if (cmd.includes('tar -xzf')) {
+          return Promise.resolve({ stdout: '', stderr: '' });
         }
         return Promise.resolve({ stdout: '', stderr: '' });
       });
@@ -284,9 +294,15 @@ describe('main', () => {
       mockFs.statSync.mockReturnValue({ size: 1024 });
       mockFs.unlinkSync.mockImplementation(() => {}); // Mock lock file removal
 
+      // Mock checksum verification to fail so tar check runs
+      mockVerifyChecksum.mockResolvedValue(false);
+
       // Mock execAsync for integrity check and extraction
       mockExecAsync.mockImplementation((cmd: string) => {
         if (cmd.includes('head -n 1')) {
+          return Promise.resolve({ stdout: '', stderr: '' });
+        }
+        if (cmd.includes('tar -xzf')) {
           return Promise.resolve({ stdout: '', stderr: '' });
         }
         return Promise.resolve({ stdout: '', stderr: '' });
@@ -299,7 +315,7 @@ describe('main', () => {
         expect.any(String)
       );
       expect(mockFs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('.lock'));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Performing quick integrity check...'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Performing tar structure check'));
     });
 
     it('should wait for existing lock to be released', async () => {

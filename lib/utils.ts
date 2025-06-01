@@ -1,7 +1,10 @@
 import * as core from '@actions/core';
 import * as path from 'path';
 import * as os from 'os';
+import * as fs from 'fs';
+import * as crypto from 'crypto';
 import { CacheInputs } from './types';
+import { logger } from './logger';
 
 export function getInputs(): CacheInputs {
   const paths = core.getInput('path', { required: true });
@@ -82,4 +85,60 @@ export function logInputs(inputs: CacheInputs): void {
 
   const cacheDir = getCacheDir(inputs);
   core.info(`Cache directory: ${cacheDir}`);
+}
+
+/**
+ * Generate SHA-256 checksum of a file
+ */
+export async function generateFileChecksum(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+
+    stream.on('error', reject);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+}
+
+/**
+ * Save checksum to a file alongside the cache file
+ */
+export async function saveChecksum(cacheFile: string, checksum: string): Promise<void> {
+  const checksumFile = `${cacheFile}.sha256`;
+  await fs.promises.writeFile(checksumFile, `${checksum}  ${path.basename(cacheFile)}\n`);
+  logger.checksum(`Saved checksum to: ${checksumFile}`);
+}
+
+/**
+ * Load and verify checksum from file
+ */
+export async function verifyChecksum(cacheFile: string): Promise<boolean> {
+  const checksumFile = `${cacheFile}.sha256`;
+
+  if (!fs.existsSync(checksumFile)) {
+    logger.warning(`Checksum file not found: ${checksumFile}`, 'CHECKSUM');
+    return false;
+  }
+
+  try {
+    const checksumContent = await fs.promises.readFile(checksumFile, 'utf8');
+    const expectedChecksum = checksumContent.split(' ')[0]?.trim();
+
+    logger.checksum(`Verifying checksum for: ${cacheFile}`);
+    const actualChecksum = await generateFileChecksum(cacheFile);
+
+    if (expectedChecksum && expectedChecksum === actualChecksum) {
+      logger.success('✅ Checksum verification passed', 'CHECKSUM');
+      return true;
+    } else {
+      logger.warning('❌ Checksum verification failed', 'CHECKSUM');
+      logger.warning(`Expected: ${expectedChecksum}`, 'CHECKSUM');
+      logger.warning(`Actual: ${actualChecksum}`, 'CHECKSUM');
+      return false;
+    }
+  } catch (error) {
+    logger.warning(`Failed to verify checksum: ${error}`, 'CHECKSUM');
+    return false;
+  }
 }

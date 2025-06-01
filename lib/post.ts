@@ -2,7 +2,9 @@ import * as core from '@actions/core';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { generateFileChecksum, saveChecksum } from './utils';
 import { getDefaultCacheDir } from './utils';
+import { logger } from './logger';
 
 function getStateFromAction(): {
   primaryKey: string;
@@ -46,21 +48,21 @@ async function run(): Promise<void> {
   try {
     const state = getStateFromAction();
 
-    core.info('Starting local cache save operation...');
-    core.info(`Primary key: ${state.primaryKey}`);
-    core.info(`Matched key: ${state.matchedKey}`);
-    core.info(`Cache directory: ${state.cacheDir}`);
+    logger.header('Local Cache Save Operation');
+    logger.cache(`Primary key: ${state.primaryKey}`);
+    logger.cache(`Matched key: ${state.matchedKey}`);
+    logger.cache(`Cache directory: ${state.cacheDir}`);
 
     // Skip saving if we had an exact cache hit
     if (state.matchedKey === state.primaryKey) {
-      core.info('Exact cache hit occurred, skipping cache save');
+      logger.info('Exact cache hit occurred, skipping cache save', 'CACHE');
       return;
     }
 
     // Ensure cache directory exists
     if (!fs.existsSync(state.cacheDir)) {
       fs.mkdirSync(state.cacheDir, { recursive: true });
-      core.info(`Created cache directory: ${state.cacheDir}`);
+      logger.success(`Created cache directory: ${state.cacheDir}`, 'CACHE');
     }
 
     // Check which paths exist and can be cached
@@ -69,14 +71,14 @@ async function run(): Promise<void> {
       if (fs.existsSync(cachePath)) {
         existingPaths.push(cachePath);
         const stats = fs.statSync(cachePath);
-        core.info(`Will cache ${cachePath} (${stats.isDirectory() ? 'directory' : 'file'})`);
+        logger.cache(`Will cache ${cachePath} (${stats.isDirectory() ? 'directory' : 'file'})`);
       } else {
-        core.warning(`Path does not exist, skipping: ${cachePath}`);
+        logger.warning(`Path does not exist, skipping: ${cachePath}`, 'CACHE');
       }
     }
 
     if (existingPaths.length === 0) {
-      core.info('No existing paths to cache, skipping cache save');
+      logger.info('No existing paths to cache, skipping cache save', 'CACHE');
       return;
     }
 
@@ -84,7 +86,7 @@ async function run(): Promise<void> {
     const keyHash = crypto.createHash('sha256').update(state.primaryKey).digest('hex');
     const cacheFile = path.join(state.cacheDir, `${keyHash}.tar.gz`);
 
-    core.info(`Creating cache archive: ${cacheFile}`);
+    logger.archive(`Creating cache archive: ${cacheFile}`);
 
     const { exec } = require('child_process');
     const util = require('util');
@@ -94,14 +96,14 @@ async function run(): Promise<void> {
       // Create temporary file for atomic write operation
       const tempFile = `${cacheFile}.tmp.${process.pid}.${Date.now()}`;
 
-      core.info(`Creating temporary cache file: ${tempFile}`);
+      logger.archive(`Creating temporary cache file: ${tempFile}`);
 
       try {
         // Create tar.gz archive to temporary file first
         const pathsStr = existingPaths.map((p) => `"${p}"`).join(' ');
         const tarCommand = `tar -czf "${tempFile}" ${pathsStr}`;
 
-        core.info(`Running: ${tarCommand}`);
+        logger.archive(`Running: ${tarCommand}`);
         await execAsync(tarCommand);
 
         // Verify temporary file was created successfully
@@ -115,28 +117,39 @@ async function run(): Promise<void> {
         }
 
         // Atomic rename - this ensures cache file is never in partial state
-        core.info(`Atomically moving cache file from ${tempFile} to ${cacheFile}`);
+        logger.archive(`Atomically moving cache file from ${tempFile} to ${cacheFile}`);
         await fs.promises.rename(tempFile, cacheFile);
 
         const stats = fs.statSync(cacheFile);
-        core.info(
-          `Cache saved successfully. File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`
+        logger.success(
+          `Cache saved successfully. File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`,
+          'CACHE'
         );
+
+        // Generate and save checksum for integrity verification
+        logger.checksum('Generating checksum for integrity verification...');
+        const checksum = await generateFileChecksum(cacheFile);
+        await saveChecksum(cacheFile, checksum);
+        logger.checksum(`Generated checksum: ${checksum.substring(0, 16)}...`);
+        logger.footer();
       } catch (error) {
         // Clean up temporary file on any error
         try {
           if (fs.existsSync(tempFile)) {
             await fs.promises.unlink(tempFile);
-            core.info(`Cleaned up temporary file: ${tempFile}`);
+            logger.cleanup(`Cleaned up temporary file: ${tempFile}`);
           }
         } catch (cleanupError) {
-          core.warning(`Failed to clean up temporary file ${tempFile}: ${cleanupError}`);
+          logger.warning(
+            `Failed to clean up temporary file ${tempFile}: ${cleanupError}`,
+            'CLEANUP'
+          );
         }
         throw error;
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      core.warning(`Failed to create cache archive: ${errorMessage}`);
+      logger.warning(`Failed to create cache archive: ${errorMessage}`, 'ARCHIVE');
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

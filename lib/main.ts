@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
-import { getInputs, validateInputs, logInputs, getCacheDir } from './utils';
+import { getInputs, validateInputs, logInputs, getCacheDir, verifyChecksum } from './utils';
+import { logger } from './logger';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -10,16 +11,16 @@ async function run(): Promise<void> {
     validateInputs(inputs);
     logInputs(inputs);
 
-    core.info('Starting local cache restore operation...');
-    core.info(`Paths to cache: ${inputs.paths.join(', ')}`);
-    core.info(`Primary key: ${inputs.primaryKey}`);
-    core.info(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
+    logger.header('Local Cache Restore Operation');
+    logger.cache(`Paths to cache: ${inputs.paths.join(', ')}`);
+    logger.cache(`Primary key: ${inputs.primaryKey}`);
+    logger.cache(`Restore keys: ${inputs.restoreKeys?.join(', ') || 'none'}`);
 
     // Create local cache directory in user's cache space (persistent)
     const cacheDir = getCacheDir(inputs);
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
-      core.info(`Created local cache directory: ${cacheDir}`);
+      logger.success(`Created local cache directory: ${cacheDir}`);
     }
 
     // Try to find existing cache using primary key or restore keys
@@ -32,7 +33,7 @@ async function run(): Promise<void> {
       const cacheFile = path.join(cacheDir, `${keyHash}.tar.gz`);
 
       if (fs.existsSync(cacheFile)) {
-        core.info(`Found local cache file for key: ${key}`);
+        logger.cache(`Found local cache file for key: ${key}`);
 
         // Simple lock file approach to prevent race conditions
         const lockFile = `${cacheFile}.lock`;
@@ -42,7 +43,7 @@ async function run(): Promise<void> {
         // Wait for any existing lock to be released
         while (fs.existsSync(lockFile)) {
           if (Date.now() - lockStart > lockTimeout) {
-            core.warning(`Lock timeout exceeded for ${cacheFile}, breaking lock`);
+            logger.warning(`Lock timeout exceeded for ${cacheFile}, breaking lock`);
             try {
               fs.unlinkSync(lockFile);
             } catch {
@@ -57,7 +58,7 @@ async function run(): Promise<void> {
         try {
           fs.writeFileSync(lockFile, process.pid.toString());
         } catch (lockError) {
-          core.warning(`Failed to create lock file: ${lockError}`);
+          logger.warning(`Failed to create lock file: ${lockError}`, 'LOCK');
           continue;
         }
 
@@ -65,11 +66,11 @@ async function run(): Promise<void> {
         try {
           // Double-check cache file still exists after acquiring lock
           if (!fs.existsSync(cacheFile)) {
-            core.warning(`Cache file was removed by another process: ${cacheFile}`);
+            logger.warning(`Cache file was removed by another process: ${cacheFile}`, 'CACHE');
           } else {
             const stats = fs.statSync(cacheFile);
             if (stats.size === 0) {
-              core.warning(`Cache file is empty, removing: ${cacheFile}`);
+              logger.warning(`Cache file is empty, removing: ${cacheFile}`, 'CACHE');
               fs.unlinkSync(cacheFile);
             } else {
               // Test cache file integrity using tar -tf (list without extracting)
@@ -77,34 +78,44 @@ async function run(): Promise<void> {
               const util = require('util');
               const execAsync = util.promisify(exec);
 
-              core.info(`Verifying cache file integrity: ${cacheFile}`);
-              // Quick integrity check without listing all files (to avoid buffer overflow)
-              core.info(`Performing quick integrity check...`);
+              logger.checksum(`Verifying cache file integrity: ${cacheFile}`);
+
+              // First check: Verify checksum if available
+              const checksumValid = await verifyChecksum(cacheFile);
+              if (!checksumValid) {
+                logger.warning(
+                  'Checksum verification failed, falling back to basic integrity check',
+                  'CHECKSUM'
+                );
+              }
+
+              // Second check: Quick tar integrity check without listing all files (to avoid buffer overflow)
+              logger.archive(`Performing tar structure check...`);
               await execAsync(`tar -tzf "${cacheFile}" | head -n 1 > /dev/null`);
 
               matchedKey = key;
               cacheHit = key === inputs.primaryKey;
 
               // Extract cache to restore the files
-              core.info(`Extracting cache from: ${cacheFile}`);
-              core.info(`Extracting to root directory: /`);
+              logger.archive(`Extracting cache from: ${cacheFile}`);
+              logger.archive(`Extracting to root directory: /`);
               await execAsync(`tar -xzf "${cacheFile}" -C /`);
-              core.info(`Cache restored successfully to root directory`);
+              logger.success(`Cache restored successfully to root directory`, 'CACHE');
               cacheProcessed = true;
             }
           }
         } catch (error) {
-          core.warning(`Cache file is corrupted or invalid: ${cacheFile}`);
-          core.warning(`Error: ${error}`);
+          logger.warning(`Cache file is corrupted or invalid: ${cacheFile}`, 'CACHE');
+          logger.error(`Error: ${error}`, 'CACHE');
 
           // Remove corrupted cache file to prevent future issues
           try {
             if (fs.existsSync(cacheFile)) {
               fs.unlinkSync(cacheFile);
-              core.info(`Removed corrupted cache file: ${cacheFile}`);
+              logger.cleanup(`Removed corrupted cache file: ${cacheFile}`);
             }
           } catch (unlinkError) {
-            core.warning(`Failed to remove corrupted cache file: ${unlinkError}`);
+            logger.warning(`Failed to remove corrupted cache file: ${unlinkError}`, 'CLEANUP');
           }
         } finally {
           // Always remove lock file
@@ -113,7 +124,7 @@ async function run(): Promise<void> {
               fs.unlinkSync(lockFile);
             }
           } catch (lockError) {
-            core.warning(`Failed to remove lock file: ${lockError}`);
+            logger.warning(`Failed to remove lock file: ${lockError}`, 'LOCK');
           }
         }
 
@@ -124,12 +135,12 @@ async function run(): Promise<void> {
     }
 
     if (matchedKey) {
-      core.info(`Cache restored from key: ${matchedKey}`);
+      logger.success(`Cache restored from key: ${matchedKey}`, 'CACHE');
       core.setOutput('cache-hit', cacheHit.toString());
       core.setOutput('cache-primary-key', inputs.primaryKey);
       core.setOutput('cache-matched-key', matchedKey);
     } else {
-      core.info('No local cache found');
+      logger.info('No local cache found', 'CACHE');
       core.setOutput('cache-hit', 'false');
       core.setOutput('cache-primary-key', inputs.primaryKey);
       core.setOutput('cache-matched-key', '');
@@ -143,7 +154,8 @@ async function run(): Promise<void> {
     core.saveState('enable-cross-os-archive', inputs.enableCrossOsArchive.toString());
     core.saveState('cache-dir', cacheDir);
 
-    core.info('Local cache operation completed successfully');
+    logger.success('Local cache operation completed successfully');
+    logger.footer();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     core.setFailed(`Action failed with error: ${errorMessage}`);
