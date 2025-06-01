@@ -97,10 +97,11 @@ describe('post', () => {
         }
       });
 
+      let tempFileCreated = false;
       mockFs.existsSync.mockImplementation((path: string) => {
         if (path === '/tmp/.local-cache') return true;
         if (path === 'package.json') return true;
-        if (path.includes('.tmp.')) return true; // Mock temp file exists after creation
+        if (path.includes('.tmp.') && tempFileCreated) return true; // Mock temp file exists after creation
         return false;
       });
 
@@ -114,8 +115,13 @@ describe('post', () => {
         };
       });
 
-      // Mock execAsync to succeed
-      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+      // Mock execAsync to succeed and mark temp file as created
+      mockExecAsync.mockImplementation(async (cmd: string) => {
+        if (cmd.includes('tar -czf')) {
+          tempFileCreated = true; // Mark temp file as created after tar command
+        }
+        return { stdout: '', stderr: '' };
+      });
 
       // Mock fs.promises.rename for atomic operation
       mockFs.promises.rename.mockResolvedValue(undefined);
@@ -138,10 +144,11 @@ describe('post', () => {
         }
       });
 
+      let tempFileCreated = false;
       mockFs.existsSync.mockImplementation((path: string) => {
         if (path === '/tmp/.local-cache') return true;
         if (path === 'package.json') return true;
-        if (path.includes('.tmp.')) return true; // Temp file exists for cleanup
+        if (path.includes('.tmp.') && tempFileCreated) return true; // Temp file exists for cleanup
         return false;
       });
 
@@ -150,8 +157,14 @@ describe('post', () => {
         size: 1024
       });
 
-      // Mock execAsync to fail
-      mockExecAsync.mockRejectedValue(new Error('tar command failed'));
+      // Mock execAsync to fail after creating temp file
+      mockExecAsync.mockImplementation(async (cmd: string) => {
+        if (cmd.includes('tar -czf')) {
+          tempFileCreated = true; // Mark temp file as created before error
+          throw new Error('tar command failed');
+        }
+        return { stdout: '', stderr: '' };
+      });
 
       // Mock fs.promises.unlink for cleanup
       mockFs.promises.unlink.mockResolvedValue(undefined);
