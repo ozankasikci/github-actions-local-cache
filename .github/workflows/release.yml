@@ -3,64 +3,104 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
+    
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
-
+      with:
+        fetch-depth: 0
+    
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
-
+    
     - name: Install dependencies
       run: npm ci
-
+    
     - name: Run tests
-      run: npm run test
-
-    - name: Build and package
-      run: npm run all
-
-    - name: Check if release exists
-      id: check_release
+      run: npm test
+    
+    - name: Run linting
+      run: npm run lint
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Get version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Create release branch with built files
       run: |
-        TAG_NAME=${GITHUB_REF#refs/tags/}
-        if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "Release $TAG_NAME already exists"
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "Release $TAG_NAME does not exist"
-        fi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Create Release
-      if: steps.check_release.outputs.exists == 'false'
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        # Create release branch
+        git checkout -b release/${{ steps.version.outputs.VERSION }}
+        
+        # Add built files (temporarily override .gitignore)
+        git add -f dist/main.js dist/post.js
+        git commit -m "Add built files for ${{ steps.version.outputs.VERSION }}"
+        git push origin release/${{ steps.version.outputs.VERSION }}
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        name: Release ${{ steps.version.outputs.VERSION }}
         body: |
-          Changes in this Release
-          - Updated dependencies
-          - Bug fixes and improvements
+          ## 🚀 What's New in ${{ steps.version.outputs.VERSION }}
+          
+          ### 🔐 **Integrity Verification System**
+          - SHA-256 checksum generation and verification  
+          - Automatic corruption detection and cleanup
+          - Dual verification (checksum + tar structure)
+          
+          ### 🔒 **Concurrency Protection**
+          - File locking prevents race conditions
+          - 60-second timeout with deadlock protection
+          - Safe parallel job execution
+          
+          ### 🎨 **Enhanced Logging**
+          - Beautiful categorized output with emojis
+          - Specialized methods: `cache()`, `checksum()`, `archive()`, `lock()`
+          - Better error reporting and debugging
+          
+          ### ⚡ **Improved Reliability**
+          - Atomic file operations prevent corruption
+          - Temp-write-rename pattern for cache saves
+          - Enhanced error handling and recovery
+          
+          ## 📦 Usage
+          
+          ```yaml
+          - name: Cache dependencies
+            uses: ozankasikci/github-actions-local-cache@${{ steps.version.outputs.VERSION }}
+            with:
+              path: |
+                node_modules
+                ~/.npm
+              key: ${{ "{{" }} runner.os {{ "}}" }}-deps-${{ "{{" }} hashFiles('**/package-lock.json') {{ "}}" }}
+              restore-keys: |
+                ${{ "{{" }} runner.os {{ "}}" }}-deps-
+          ```
+          
+          ## 🔗 Built Files
+          
+          Pre-built files are available on the [`release/${{ steps.version.outputs.VERSION }}`](https://github.com/${{ github.repository }}/tree/release/${{ steps.version.outputs.VERSION }}) branch.
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v1.4.2...${{ steps.version.outputs.VERSION }}
         draft: false
         prerelease: false
-
-    - name: Release already exists
-      if: steps.check_release.outputs.exists == 'true'
-      run: |
-        echo "Release already exists. Skipping release creation."
-        echo "You can view the existing release at: https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF#refs/tags/}"
+        make_latest: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

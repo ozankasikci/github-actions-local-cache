@@ -1,21 +1,73 @@
 # Dependencies
 node_modules/
 scripts/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Build artifacts (keep dist/ for GitHub Actions)
+# Build outputs (now handled by release workflow)
+dist/
 lib/**/*.js
 lib/**/*.d.ts
 lib/**/*.js.map
-
-# Temporary files  
-*.log
-.DS_Store
-.env
-.eslintcache
+lib/**/*.d.ts.map
 
 # Test coverage
 coverage/
 .nyc_output/
+*.lcov
 
-# Bundled build folders (exclude but keep final files)
-dist/*-bundle/
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Environment files
+.env
+.env.test
+.env.local
+.env.development
+.env.staging
+.env.production
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Cache directories
+.npm
+.eslintcache
+.yarn-integrity
+*.tsbuildinfo
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+tmp/
+temp/
+
+# Package files
+*.tgz
