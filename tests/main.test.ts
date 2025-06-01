@@ -155,5 +155,82 @@ describe('main', () => {
       expect(mockCore.info).toHaveBeenCalledWith('Paths to cache: test.txt');
       expect(mockCore.info).toHaveBeenCalledWith('Primary key: test');
     });
+
+    it('should verify cache integrity before extraction', async () => {
+      const inputs = {
+        paths: ['package.json'],
+        primaryKey: 'test-key',
+        restoreKeys: ['fallback-key'],
+        uploadChunkSize: undefined,
+        enableCrossOsArchive: false,
+      };
+      mockGetInputs.mockReturnValue(inputs);
+
+      // Mock cache file exists
+      mockFs.existsSync.mockImplementation((path: string) => {
+        return path.includes('.cache') || path.includes('mocked-hash-1.tar.gz');
+      });
+
+      mockFs.statSync.mockReturnValue({ size: 1024 });
+
+      // Mock execAsync for integrity check and extraction
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+
+      await run();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Verifying cache file integrity:'));
+      expect(mockExecAsync).toHaveBeenCalledWith(expect.stringContaining('tar -tzf'));
+      expect(mockExecAsync).toHaveBeenCalledWith(expect.stringContaining('tar -xzf'));
+    });
+
+    it('should remove corrupted cache files', async () => {
+      const inputs = {
+        paths: ['package.json'],
+        primaryKey: 'test-key',
+        restoreKeys: [],
+        uploadChunkSize: undefined,
+        enableCrossOsArchive: false,
+      };
+      mockGetInputs.mockReturnValue(inputs);
+
+      // Mock cache file exists but is corrupted
+      mockFs.existsSync.mockImplementation((path: string) => {
+        return path.includes('.cache') || path.includes('mocked-hash-1.tar.gz');
+      });
+
+      mockFs.statSync.mockReturnValue({ size: 1024 });
+
+      // Mock integrity check to fail
+      mockExecAsync.mockRejectedValue(new Error('tar: corrupted file'));
+
+      await run();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Cache file is corrupted or invalid:'));
+      expect(mockFs.unlinkSync).toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Removed corrupted cache file:'));
+    });
+
+    it('should handle empty cache files', async () => {
+      const inputs = {
+        paths: ['package.json'],
+        primaryKey: 'test-key',
+        restoreKeys: [],
+        uploadChunkSize: undefined,
+        enableCrossOsArchive: false,
+      };
+      mockGetInputs.mockReturnValue(inputs);
+
+      // Mock cache file exists but is empty
+      mockFs.existsSync.mockImplementation((path: string) => {
+        return path.includes('.cache') || path.includes('mocked-hash-1.tar.gz');
+      });
+
+      mockFs.statSync.mockReturnValue({ size: 0 }); // Empty file
+
+      await run();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Cache file is empty, removing:'));
+      expect(mockFs.unlinkSync).toHaveBeenCalled();
+    });
   });
 });

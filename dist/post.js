@@ -115,13 +115,42 @@ async function run() {
         const util = __nccwpck_require__(9023);
         const execAsync = util.promisify(exec);
         try {
-            // Create tar.gz archive of the paths
-            const pathsStr = existingPaths.map((p) => `"${p}"`).join(' ');
-            const tarCommand = `tar -czf "${cacheFile}" ${pathsStr}`;
-            core.info(`Running: ${tarCommand}`);
-            await execAsync(tarCommand);
-            const stats = fs.statSync(cacheFile);
-            core.info(`Cache saved successfully. File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+            // Create temporary file for atomic write operation
+            const tempFile = `${cacheFile}.tmp.${process.pid}.${Date.now()}`;
+            core.info(`Creating temporary cache file: ${tempFile}`);
+            try {
+                // Create tar.gz archive to temporary file first
+                const pathsStr = existingPaths.map((p) => `"${p}"`).join(' ');
+                const tarCommand = `tar -czf "${tempFile}" ${pathsStr}`;
+                core.info(`Running: ${tarCommand}`);
+                await execAsync(tarCommand);
+                // Verify temporary file was created successfully
+                if (!fs.existsSync(tempFile)) {
+                    throw new Error('Temporary cache file was not created');
+                }
+                const tempStats = fs.statSync(tempFile);
+                if (tempStats.size === 0) {
+                    throw new Error('Temporary cache file is empty');
+                }
+                // Atomic rename - this ensures cache file is never in partial state
+                core.info(`Atomically moving cache file from ${tempFile} to ${cacheFile}`);
+                await fs.promises.rename(tempFile, cacheFile);
+                const stats = fs.statSync(cacheFile);
+                core.info(`Cache saved successfully. File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+            }
+            catch (error) {
+                // Clean up temporary file on any error
+                try {
+                    if (fs.existsSync(tempFile)) {
+                        await fs.promises.unlink(tempFile);
+                        core.info(`Cleaned up temporary file: ${tempFile}`);
+                    }
+                }
+                catch (cleanupError) {
+                    core.warning(`Failed to clean up temporary file ${tempFile}: ${cleanupError}`);
+                }
+                throw error;
+            }
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
