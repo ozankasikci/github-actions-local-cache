@@ -1,5 +1,8 @@
-import { getInputs, validateInputs, logInputs } from '../lib/utils';
+import { getInputs, validateInputs, logInputs, generateFileChecksum, saveChecksum, verifyChecksum } from '../lib/utils';
 import { mockCore } from './setup';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 describe('utils', () => {
   describe('getInputs', () => {
@@ -192,6 +195,127 @@ describe('utils', () => {
       expect(mockCore.info).toHaveBeenCalledWith('Cache paths: node_modules');
       // Now includes cache directory log
       expect(mockCore.info).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('checksum functions', () => {
+    const testFile = '/tmp/test.txt';
+    const testContent = 'Hello, world! This is test content for checksum generation.';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    describe('generateFileChecksum', () => {
+      it('should generate SHA-256 checksum for a file', async () => {
+        // Mock createReadStream to simulate file reading
+        const mockStream: any = {
+          on: jest.fn((event: string, callback: Function): any => {
+            if (event === 'data') {
+              callback(Buffer.from(testContent));
+            } else if (event === 'end') {
+              callback();
+            }
+            return mockStream;
+          })
+        };
+        
+        (fs.createReadStream as jest.Mock).mockReturnValue(mockStream);
+        
+        const checksum = await generateFileChecksum(testFile);
+        
+        expect(typeof checksum).toBe('string');
+        expect(checksum).toBe('mocked-hash-1'); // Our mock always returns this
+      });
+
+      it('should reject for file read errors', async () => {
+        // Mock createReadStream to simulate error
+        const mockStream: any = {
+          on: jest.fn((event: string, callback: Function): any => {
+            if (event === 'error') {
+              callback(new Error('File read error'));
+            }
+            return mockStream;
+          })
+        };
+        
+        (fs.createReadStream as jest.Mock).mockReturnValue(mockStream);
+        
+        await expect(generateFileChecksum(testFile)).rejects.toThrow('File read error');
+      });
+    });
+
+    describe('saveChecksum', () => {
+      it('should save checksum to .sha256 file', async () => {
+        const checksum = 'abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab';
+        await saveChecksum(testFile, checksum);
+        
+        expect(fs.promises.writeFile).toHaveBeenCalledWith(
+          `${testFile}.sha256`,
+          expect.stringContaining(checksum)
+        );
+      });
+    });
+
+    describe('verifyChecksum', () => {
+      it('should return false for missing checksum file', async () => {
+        (fs.existsSync as jest.Mock).mockReturnValue(false);
+        
+        const isValid = await verifyChecksum(testFile);
+        expect(isValid).toBe(false);
+      });
+
+      it('should verify correct checksum', async () => {
+        (fs.existsSync as jest.Mock).mockReturnValue(true);
+        (fs.promises.readFile as jest.Mock).mockResolvedValue('mocked-hash-1  test.txt\n');
+        
+        // Mock createReadStream for generateFileChecksum call
+        const mockStream: any = {
+          on: jest.fn((event: string, callback: Function): any => {
+            if (event === 'data') callback(Buffer.from(testContent));
+            else if (event === 'end') callback();
+            return mockStream;
+          })
+        };
+        (fs.createReadStream as jest.Mock).mockReturnValue(mockStream);
+        
+        const isValid = await verifyChecksum(testFile);
+        expect(isValid).toBe(true);
+      });
+
+      it('should reject incorrect checksum', async () => {
+        (fs.existsSync as jest.Mock).mockReturnValue(true);
+        (fs.promises.readFile as jest.Mock).mockResolvedValue('wrong-checksum  test.txt\n');
+        
+        // Mock createReadStream for generateFileChecksum call
+        const mockStream: any = {
+          on: jest.fn((event: string, callback: Function): any => {
+            if (event === 'data') callback(Buffer.from(testContent));
+            else if (event === 'end') callback();
+            return mockStream;
+          })
+        };
+        (fs.createReadStream as jest.Mock).mockReturnValue(mockStream);
+        
+        const isValid = await verifyChecksum(testFile);
+        expect(isValid).toBe(false);
+      });
+
+      it('should handle corrupted checksum file gracefully', async () => {
+        (fs.existsSync as jest.Mock).mockReturnValue(true);
+        (fs.promises.readFile as jest.Mock).mockResolvedValue('invalid format');
+        
+        const isValid = await verifyChecksum(testFile);
+        expect(isValid).toBe(false);
+      });
+
+      it('should handle file read errors gracefully', async () => {
+        (fs.existsSync as jest.Mock).mockReturnValue(true);
+        (fs.promises.readFile as jest.Mock).mockRejectedValue(new Error('Read error'));
+        
+        const isValid = await verifyChecksum(testFile);
+        expect(isValid).toBe(false);
+      });
     });
   });
 });

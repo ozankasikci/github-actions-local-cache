@@ -10,6 +10,7 @@ export const mockCore = {
   info: jest.fn() as jest.MockedFunction<any>,
   warning: jest.fn() as jest.MockedFunction<any>,
   error: jest.fn() as jest.MockedFunction<any>,
+  debug: jest.fn() as jest.MockedFunction<any>,
 };
 
 // Mock filesystem operations
@@ -19,9 +20,14 @@ export const mockFs = {
   mkdirSync: jest.fn() as jest.MockedFunction<any>,
   unlinkSync: jest.fn() as jest.MockedFunction<any>,
   writeFileSync: jest.fn() as jest.MockedFunction<any>,
+  readFileSync: jest.fn() as jest.MockedFunction<any>,
+  rmSync: jest.fn() as jest.MockedFunction<any>,
+  createReadStream: jest.fn() as jest.MockedFunction<any>,
   promises: {
     rename: jest.fn() as jest.MockedFunction<any>,
     unlink: jest.fn() as jest.MockedFunction<any>,
+    writeFile: jest.fn() as jest.MockedFunction<any>,
+    readFile: jest.fn() as jest.MockedFunction<any>,
   },
 };
 
@@ -47,11 +53,13 @@ export const mockCrypto = {
 // Mock path
 export const mockPath = {
   join: jest.fn((...parts: string[]) => parts.filter(p => p && p.length > 0).join('/')),
+  basename: jest.fn((filePath: string) => filePath.split('/').pop() || ''),
 };
 
 // Mock os
 export const mockOs = {
   homedir: jest.fn(() => '/home/runner'),
+  tmpdir: jest.fn(() => '/tmp'),
 };
 
 // Setup mocks
