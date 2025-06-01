@@ -72,7 +72,7 @@ async function run() {
                 core.info(`Found local cache file for key: ${key}`);
                 // Simple lock file approach to prevent race conditions
                 const lockFile = `${cacheFile}.lock`;
-                const lockTimeout = 30000; // 30 seconds
+                const lockTimeout = 60000; // 60 seconds
                 const lockStart = Date.now();
                 // Wait for any existing lock to be released
                 while (fs.existsSync(lockFile)) {
