@@ -166,15 +166,22 @@ describe('main', () => {
       };
       mockGetInputs.mockReturnValue(inputs);
 
-      // Mock cache file exists
+      // Mock cache directory and file existence
       mockFs.existsSync.mockImplementation((path: string) => {
-        return path.includes('.cache') || path.includes('mocked-hash-1.tar.gz');
+        if (path.includes('.cache/github-actions-local-cache')) return true;
+        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        return false;
       });
 
       mockFs.statSync.mockReturnValue({ size: 1024 });
 
       // Mock execAsync for integrity check and extraction
-      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+      mockExecAsync.mockImplementation((cmd: string) => {
+        if (cmd.includes('tar -tzf')) {
+          return Promise.resolve({ stdout: 'file1\nfile2\nfile3\n', stderr: '' });
+        }
+        return Promise.resolve({ stdout: '', stderr: '' });
+      });
 
       await run();
 
@@ -193,9 +200,11 @@ describe('main', () => {
       };
       mockGetInputs.mockReturnValue(inputs);
 
-      // Mock cache file exists but is corrupted
+      // Mock cache directory and file existence
       mockFs.existsSync.mockImplementation((path: string) => {
-        return path.includes('.cache') || path.includes('mocked-hash-1.tar.gz');
+        if (path.includes('.cache/github-actions-local-cache')) return true;
+        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        return false;
       });
 
       mockFs.statSync.mockReturnValue({ size: 1024 });
@@ -220,9 +229,11 @@ describe('main', () => {
       };
       mockGetInputs.mockReturnValue(inputs);
 
-      // Mock cache file exists but is empty
+      // Mock cache directory and file existence
       mockFs.existsSync.mockImplementation((path: string) => {
-        return path.includes('.cache') || path.includes('mocked-hash-1.tar.gz');
+        if (path.includes('.cache/github-actions-local-cache')) return true;
+        if (path.includes('mocked-hash-1.tar.gz')) return true;
+        return false;
       });
 
       mockFs.statSync.mockReturnValue({ size: 0 }); // Empty file

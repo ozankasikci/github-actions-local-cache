@@ -91,7 +91,7 @@ describe('post', () => {
         switch (key) {
           case 'cache-primary-key': return 'test-key-123';
           case 'cache-paths': return JSON.stringify(['package.json']);
-          case 'cache-matched-key': return '';
+          case 'cache-matched-key': return 'different-key'; // Force cache save
           case 'cache-dir': return '/tmp/.local-cache';
           default: return '';
         }
@@ -114,6 +114,9 @@ describe('post', () => {
         };
       });
 
+      // Mock execAsync to succeed
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
+
       // Mock fs.promises.rename for atomic operation
       mockFs.promises.rename.mockResolvedValue(undefined);
 
@@ -129,7 +132,7 @@ describe('post', () => {
         switch (key) {
           case 'cache-primary-key': return 'test-key-123';
           case 'cache-paths': return JSON.stringify(['package.json']);
-          case 'cache-matched-key': return '';
+          case 'cache-matched-key': return 'different-key'; // Force cache save
           case 'cache-dir': return '/tmp/.local-cache';
           default: return '';
         }
