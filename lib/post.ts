@@ -93,9 +93,9 @@ async function run(): Promise<void> {
     try {
       // Create temporary file for atomic write operation
       const tempFile = `${cacheFile}.tmp.${process.pid}.${Date.now()}`;
-      
+
       core.info(`Creating temporary cache file: ${tempFile}`);
-      
+
       try {
         // Create tar.gz archive to temporary file first
         const pathsStr = existingPaths.map((p) => `"${p}"`).join(' ');
@@ -119,7 +119,9 @@ async function run(): Promise<void> {
         await fs.promises.rename(tempFile, cacheFile);
 
         const stats = fs.statSync(cacheFile);
-        core.info(`Cache saved successfully. File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+        core.info(
+          `Cache saved successfully. File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`
+        );
       } catch (error) {
         // Clean up temporary file on any error
         try {

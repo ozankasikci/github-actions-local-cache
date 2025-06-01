@@ -86,7 +86,7 @@ async function run() {
                         }
                         break;
                     }
-                    await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms
+                    await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100ms
                 }
                 // Create lock file
                 try {
@@ -96,34 +96,37 @@ async function run() {
                     core.warning(`Failed to create lock file: ${lockError}`);
                     continue;
                 }
+                let cacheProcessed = false;
                 try {
                     // Double-check cache file still exists after acquiring lock
                     if (!fs.existsSync(cacheFile)) {
                         core.warning(`Cache file was removed by another process: ${cacheFile}`);
-                        continue;
                     }
-                    const stats = fs.statSync(cacheFile);
-                    if (stats.size === 0) {
-                        core.warning(`Cache file is empty, removing: ${cacheFile}`);
-                        fs.unlinkSync(cacheFile);
-                        continue;
+                    else {
+                        const stats = fs.statSync(cacheFile);
+                        if (stats.size === 0) {
+                            core.warning(`Cache file is empty, removing: ${cacheFile}`);
+                            fs.unlinkSync(cacheFile);
+                        }
+                        else {
+                            // Test cache file integrity using tar -tf (list without extracting)
+                            const { exec } = __nccwpck_require__(5317);
+                            const util = __nccwpck_require__(9023);
+                            const execAsync = util.promisify(exec);
+                            core.info(`Verifying cache file integrity: ${cacheFile}`);
+                            // Quick integrity check without listing all files (to avoid buffer overflow)
+                            core.info(`Performing quick integrity check...`);
+                            await execAsync(`tar -tzf "${cacheFile}" | head -n 1 > /dev/null`);
+                            matchedKey = key;
+                            cacheHit = key === inputs.primaryKey;
+                            // Extract cache to restore the files
+                            core.info(`Extracting cache from: ${cacheFile}`);
+                            core.info(`Extracting to root directory: /`);
+                            await execAsync(`tar -xzf "${cacheFile}" -C /`);
+                            core.info(`Cache restored successfully to root directory`);
+                            cacheProcessed = true;
+                        }
                     }
-                    // Test cache file integrity using tar -tf (list without extracting)
-                    const { exec } = __nccwpck_require__(5317);
-                    const util = __nccwpck_require__(9023);
-                    const execAsync = util.promisify(exec);
-                    core.info(`Verifying cache file integrity: ${cacheFile}`);
-                    // Quick integrity check without listing all files (to avoid buffer overflow)
-                    core.info(`Performing quick integrity check...`);
-                    await execAsync(`tar -tzf "${cacheFile}" | head -n 1 > /dev/null`);
-                    matchedKey = key;
-                    cacheHit = key === inputs.primaryKey;
-                    // Extract cache to restore the files
-                    core.info(`Extracting cache from: ${cacheFile}`);
-                    core.info(`Extracting to root directory: /`);
-                    await execAsync(`tar -xzf "${cacheFile}" -C /`);
-                    core.info(`Cache restored successfully to root directory`);
-                    break;
                 }
                 catch (error) {
                     core.warning(`Cache file is corrupted or invalid: ${cacheFile}`);
@@ -138,7 +141,6 @@ async function run() {
                     catch (unlinkError) {
                         core.warning(`Failed to remove corrupted cache file: ${unlinkError}`);
                     }
-                    continue;
                 }
                 finally {
                     // Always remove lock file
@@ -150,6 +152,9 @@ async function run() {
                     catch (lockError) {
                         core.warning(`Failed to remove lock file: ${lockError}`);
                     }
+                }
+                if (cacheProcessed) {
+                    break;
                 }
             }
         }
