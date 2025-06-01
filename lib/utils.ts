@@ -13,6 +13,7 @@ export function getInputs(): CacheInputs {
   const uploadChunkSize = core.getInput('upload-chunk-size');
   const enableCrossOsArchive = core.getInput('enableCrossOsArchive') === 'true';
   const cacheDir = core.getInput('cache-dir');
+  const lockTimeout = core.getInput('lock-timeout');
 
   const pathsArray = paths
     .split('\n')
@@ -41,12 +42,17 @@ export function getInputs(): CacheInputs {
     uploadChunkSize: uploadChunkSize ? parseInt(uploadChunkSize, 10) : undefined,
     enableCrossOsArchive,
     cacheDir: cacheDir.trim() || undefined,
+    lockTimeout: lockTimeout ? parseInt(lockTimeout, 10) : 60, // Default 60 seconds
   };
 }
 
 export function validateInputs(inputs: CacheInputs): void {
   if (inputs.uploadChunkSize !== undefined && inputs.uploadChunkSize <= 0) {
     throw new Error('Upload chunk size must be a positive number');
+  }
+
+  if (inputs.lockTimeout !== undefined && inputs.lockTimeout <= 0) {
+    throw new Error('Lock timeout must be a positive number');
   }
 
   for (const path of inputs.paths) {
@@ -81,6 +87,10 @@ export function logInputs(inputs: CacheInputs): void {
 
   if (inputs.enableCrossOsArchive) {
     core.info('Cross-OS archive enabled');
+  }
+
+  if (inputs.lockTimeout !== undefined) {
+    core.info(`Lock timeout: ${inputs.lockTimeout} seconds`);
   }
 
   const cacheDir = getCacheDir(inputs);

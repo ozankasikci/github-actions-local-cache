@@ -25,6 +25,10 @@ inputs:
   cache-dir:
     description: 'Directory where cache files will be stored. Defaults to ~/.cache/github-actions-local-cache'
     required: false
+  lock-timeout:
+    description: 'Maximum time in seconds to wait for file locks before breaking them. Defaults to 60 seconds'
+    default: '60'
+    required: false
 
 outputs:
   cache-hit:

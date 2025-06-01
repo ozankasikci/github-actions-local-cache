@@ -37,12 +37,12 @@ async function run(): Promise<void> {
 
         // Simple lock file approach to prevent race conditions
         const lockFile = `${cacheFile}.lock`;
-        const lockTimeout = 60000; // 60 seconds
+        const lockTimeoutMs = (inputs.lockTimeout || 60) * 1000; // Convert to milliseconds
         const lockStart = Date.now();
 
         // Wait for any existing lock to be released
         while (fs.existsSync(lockFile)) {
-          if (Date.now() - lockStart > lockTimeout) {
+          if (Date.now() - lockStart > lockTimeoutMs) {
             logger.warning(`Lock timeout exceeded for ${cacheFile}, breaking lock`);
             try {
               fs.unlinkSync(lockFile);

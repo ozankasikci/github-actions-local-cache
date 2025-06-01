@@ -62,6 +62,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
     restore-keys: ${{ runner.os }}-large-
     upload-chunk-size: 10485760  # 10MB chunks
     enableCrossOsArchive: true
+    lock-timeout: 120  # Wait up to 2 minutes for locks
 ```
 
 ## Inputs
@@ -74,6 +75,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 | `upload-chunk-size` | Chunk size for splitting large files (bytes) | No | |
 | `enableCrossOsArchive` | Allow cross-platform cache restore | No | `false` |
 | `cache-dir` | Directory where cache files will be stored | No | `~/.cache/github-actions-local-cache` |
+| `lock-timeout` | Maximum time in seconds to wait for file locks | No | `60` |
 
 ## Outputs
 
