@@ -346,10 +346,12 @@ async function run() {
             if (fs.existsSync(cachePath)) {
                 existingPaths.push(cachePath);
                 const stats = fs.statSync(cachePath);
-                logger_1.logger.cache(`Will cache ${cachePath} (${stats.isDirectory() ? 'directory' : 'file'})`);
+                const absolutePath = path.isAbsolute(cachePath) ? cachePath : path.resolve(cachePath);
+                logger_1.logger.cache(`Will cache ${absolutePath} (${stats.isDirectory() ? 'directory' : 'file'})`);
             }
             else {
-                logger_1.logger.warning(`Path does not exist, skipping: ${cachePath}`, 'CACHE');
+                const absolutePath = path.isAbsolute(cachePath) ? cachePath : path.resolve(cachePath);
+                logger_1.logger.warning(`Path does not exist, skipping: ${absolutePath}`, 'CACHE');
             }
         }
         if (existingPaths.length === 0) {

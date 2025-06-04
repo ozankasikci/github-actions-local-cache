@@ -54,6 +54,8 @@ export const mockCrypto = {
 export const mockPath = {
   join: jest.fn((...parts: string[]) => parts.filter(p => p && p.length > 0).join('/')),
   basename: jest.fn((filePath: string) => filePath.split('/').pop() || ''),
+  isAbsolute: jest.fn((path: string) => path.startsWith('/')),
+  resolve: jest.fn((path: string) => path.startsWith('/') ? path : `/test/cwd/${path}`),
 };
 
 // Mock os
@@ -111,6 +113,10 @@ export const resetMocks = (): void => {
   
   mockPath.join.mockReset();
   mockPath.join.mockImplementation((...parts: string[]) => parts.filter(p => p && p.length > 0).join('/'));
+  mockPath.isAbsolute.mockReset();
+  mockPath.isAbsolute.mockImplementation((path: string) => path.startsWith('/'));
+  mockPath.resolve.mockReset();
+  mockPath.resolve.mockImplementation((path: string) => path.startsWith('/') ? path : `/test/cwd/${path}`);
   
   mockOs.homedir.mockReset();
   mockOs.homedir.mockReturnValue('/home/runner');

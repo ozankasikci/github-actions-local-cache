@@ -56,8 +56,8 @@ describe('post', () => {
       await run();
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('LOCAL CACHE SAVE OPERATION'));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache node_modules (directory)'));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache .cache (directory)'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Will cache.*node_modules.*\(directory\)/));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Will cache.*\.cache.*\(directory\)/));
     });
 
     it('should attempt to save cache when no exact match occurred', async () => {
@@ -83,7 +83,7 @@ describe('post', () => {
       await run();
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('LOCAL CACHE SAVE OPERATION'));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache package.json (file)'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Will cache.*package\.json.*\(file\)/));
     });
 
     it('should use atomic file operations with temp files', async () => {
@@ -193,7 +193,7 @@ describe('post', () => {
 
       await run();
 
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Path does not exist, skipping: non-existent-path'));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringMatching(/Path does not exist.*non-existent-path/));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('No existing paths to cache, skipping cache save'));
       expect(mockExecAsync).not.toHaveBeenCalled();
     });
@@ -324,8 +324,8 @@ describe('post', () => {
 
       await run();
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache package.json (file)'));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Will cache node_modules (directory)'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Will cache.*package\.json.*\(file\)/));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Will cache.*node_modules.*\(directory\)/));
     });
   });
 });

@@ -71,9 +71,11 @@ async function run(): Promise<void> {
       if (fs.existsSync(cachePath)) {
         existingPaths.push(cachePath);
         const stats = fs.statSync(cachePath);
-        logger.cache(`Will cache ${cachePath} (${stats.isDirectory() ? 'directory' : 'file'})`);
+        const absolutePath = path.isAbsolute(cachePath) ? cachePath : path.resolve(cachePath);
+        logger.cache(`Will cache ${absolutePath} (${stats.isDirectory() ? 'directory' : 'file'})`);
       } else {
-        logger.warning(`Path does not exist, skipping: ${cachePath}`, 'CACHE');
+        const absolutePath = path.isAbsolute(cachePath) ? cachePath : path.resolve(cachePath);
+        logger.warning(`Path does not exist, skipping: ${absolutePath}`, 'CACHE');
       }
     }
 

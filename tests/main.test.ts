@@ -166,6 +166,8 @@ describe('main', () => {
         restoreKeys: ['fallback-key'],
         uploadChunkSize: undefined,
         enableCrossOsArchive: false,
+        lockTimeout: 60,
+        cacheDir: undefined,
       };
       mockGetInputs.mockReturnValue(inputs);
 
@@ -186,21 +188,22 @@ describe('main', () => {
       mockVerifyChecksum.mockResolvedValue(false);
 
       // Mock execAsync for integrity check and extraction
-      mockExecAsync.mockImplementation((cmd: string) => {
+      mockExecAsync.mockImplementation(async (cmd: string) => {
         if (cmd.includes('tar -tzf')) {
-          return Promise.resolve({ stdout: 'file1\nfile2\nfile3\n', stderr: '' });
+          return { stdout: 'file1\nfile2\nfile3\n', stderr: '' };
         }
         if (cmd.includes('tar -xzf')) {
-          return Promise.resolve({ stdout: '', stderr: '' });
+          return { stdout: '', stderr: '' };
         }
-        return Promise.resolve({ stdout: '', stderr: '' });
+        return { stdout: '', stderr: '' };
       });
 
       await run();
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Verifying cache file integrity:'));
       expect(mockExecAsync).toHaveBeenCalledWith(expect.stringContaining('tar -tzf'));
-      expect(mockExecAsync).toHaveBeenCalledWith(expect.stringContaining('tar -xzf'));
+      expect(mockExecAsync).toHaveBeenCalledTimes(2);
+      expect(mockExecAsync).toHaveBeenLastCalledWith(expect.stringContaining('tar -xzf'));
     });
 
     it('should remove corrupted cache files', async () => {

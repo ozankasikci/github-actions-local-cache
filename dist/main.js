@@ -375,6 +375,14 @@ async function run() {
                             // Extract cache to restore the files
                             logger_1.logger.archive(`Extracting cache from: ${cacheFile}`);
                             logger_1.logger.archive(`Extracting to root directory: /`);
+                            // Log absolute paths where cache will be restored
+                            logger_1.logger.cache('Cache will be restored to the following absolute paths:');
+                            for (const cachePath of inputs.paths) {
+                                const absolutePath = path.isAbsolute(cachePath)
+                                    ? cachePath
+                                    : path.resolve(cachePath);
+                                logger_1.logger.cache(`  → ${absolutePath}`);
+                            }
                             await execAsync(`tar -xzf "${cacheFile}" -C /`);
                             logger_1.logger.success(`Cache restored successfully to root directory`, 'CACHE');
                             cacheProcessed = true;
