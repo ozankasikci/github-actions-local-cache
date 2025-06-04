@@ -6,7 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build outputs (now handled by release workflow)
-dist/
+# dist/ needs to be committed for GitHub Actions to work
 lib/**/*.js
 lib/**/*.d.ts
 lib/**/*.js.map
