@@ -54,3 +54,4 @@ This file contains important development practices and reminders for this projec
 - Always run linter before pushing to maintain code quality
 - Coverage badge is automatically updated by CI
 - Built files are excluded from git and generated during release
+- Always run linter and fix any issues before releasing
