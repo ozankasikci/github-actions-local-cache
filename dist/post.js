@@ -374,14 +374,18 @@ async function run() {
                 // Create tar.gz archive to temporary file first
                 // Use -C flag to change to root directory before archiving
                 // This ensures paths are stored relative to root
+                logger_1.logger.archive('DEBUG: Processing paths for tar archive:');
                 const pathsStr = existingPaths
                     .map((p) => {
                     // Convert to absolute path and remove leading slash
                     const absolutePath = path.isAbsolute(p) ? p : path.resolve(p);
-                    return `"${absolutePath.substring(1)}"`; // Remove leading /
+                    const strippedPath = absolutePath.substring(1); // Remove leading /
+                    logger_1.logger.archive(`DEBUG: Original path: "${p}" -> Absolute: "${absolutePath}" -> Stripped: "${strippedPath}"`);
+                    return `"${strippedPath}"`;
                 })
                     .join(' ');
                 const tarCommand = `tar -czf "${tempFile}" -C / ${pathsStr}`;
+                logger_1.logger.archive(`DEBUG: Final tar command: ${tarCommand}`);
                 logger_1.logger.archive(`Running: ${tarCommand}`);
                 await execAsync(tarCommand);
                 // Verify temporary file was created successfully
@@ -391,6 +395,15 @@ async function run() {
                 const tempStats = fs.statSync(tempFile);
                 if (tempStats.size === 0) {
                     throw new Error('Temporary cache file is empty');
+                }
+                // DEBUG: List contents of tar archive to verify what was actually stored
+                logger_1.logger.archive('DEBUG: Verifying tar archive contents...');
+                try {
+                    const { stdout } = await execAsync(`tar -tzf "${tempFile}" | head -20`);
+                    logger_1.logger.archive(`DEBUG: Archive contents (first 20 entries):\n${stdout}`);
+                }
+                catch (listError) {
+                    logger_1.logger.warning(`DEBUG: Failed to list archive contents: ${listError}`, 'ARCHIVE');
                 }
                 // Atomic rename - this ensures cache file is never in partial state
                 logger_1.logger.archive(`Atomically moving cache file from ${tempFile} to ${cacheFile}`);

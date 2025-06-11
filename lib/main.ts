@@ -100,6 +100,15 @@ async function run(): Promise<void> {
               logger.archive(`Extracting cache from: ${cacheFile}`);
               logger.archive(`Extracting to root directory: /`);
 
+              // DEBUG: List what's actually in the tar file before extraction
+              logger.archive('DEBUG: Listing tar archive contents before extraction...');
+              try {
+                const { stdout } = await execAsync(`tar -tzf "${cacheFile}" | head -20`);
+                logger.archive(`DEBUG: Archive contents (first 20 entries):\n${stdout}`);
+              } catch (listError) {
+                logger.warning(`DEBUG: Failed to list archive contents: ${listError}`, 'ARCHIVE');
+              }
+
               // Log absolute paths where cache will be restored
               logger.cache('Cache will be restored to the following absolute paths:');
               for (const cachePath of inputs.paths) {
@@ -109,7 +118,28 @@ async function run(): Promise<void> {
                 logger.cache(`  → ${absolutePath}`);
               }
 
-              await execAsync(`tar -xzf "${cacheFile}" -C /`);
+              const extractCommand = `tar -xzf "${cacheFile}" -C /`;
+              logger.archive(`DEBUG: Running extraction command: ${extractCommand}`);
+              await execAsync(extractCommand);
+              
+              // DEBUG: Verify extraction by checking if target paths exist
+              logger.archive('DEBUG: Verifying extraction results...');
+              for (const cachePath of inputs.paths) {
+                const absolutePath = path.isAbsolute(cachePath)
+                  ? cachePath
+                  : path.resolve(cachePath);
+                const exists = fs.existsSync(absolutePath);
+                logger.archive(`DEBUG: Path "${absolutePath}" exists after extraction: ${exists}`);
+                if (exists) {
+                  try {
+                    const stats = fs.statSync(absolutePath);
+                    logger.archive(`DEBUG: Path "${absolutePath}" is ${stats.isDirectory() ? 'directory' : 'file'}, size: ${stats.size || 'N/A'}`);
+                  } catch (statError) {
+                    logger.warning(`DEBUG: Failed to stat "${absolutePath}": ${statError}`, 'ARCHIVE');
+                  }
+                }
+              }
+              
               logger.success(`Cache restored successfully to root directory`, 'CACHE');
               cacheProcessed = true;
             }

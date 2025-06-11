@@ -375,6 +375,15 @@ async function run() {
                             // Extract cache to restore the files
                             logger_1.logger.archive(`Extracting cache from: ${cacheFile}`);
                             logger_1.logger.archive(`Extracting to root directory: /`);
+                            // DEBUG: List what's actually in the tar file before extraction
+                            logger_1.logger.archive('DEBUG: Listing tar archive contents before extraction...');
+                            try {
+                                const { stdout } = await execAsync(`tar -tzf "${cacheFile}" | head -20`);
+                                logger_1.logger.archive(`DEBUG: Archive contents (first 20 entries):\n${stdout}`);
+                            }
+                            catch (listError) {
+                                logger_1.logger.warning(`DEBUG: Failed to list archive contents: ${listError}`, 'ARCHIVE');
+                            }
                             // Log absolute paths where cache will be restored
                             logger_1.logger.cache('Cache will be restored to the following absolute paths:');
                             for (const cachePath of inputs.paths) {
@@ -383,7 +392,27 @@ async function run() {
                                     : path.resolve(cachePath);
                                 logger_1.logger.cache(`  → ${absolutePath}`);
                             }
-                            await execAsync(`tar -xzf "${cacheFile}" -C /`);
+                            const extractCommand = `tar -xzf "${cacheFile}" -C /`;
+                            logger_1.logger.archive(`DEBUG: Running extraction command: ${extractCommand}`);
+                            await execAsync(extractCommand);
+                            // DEBUG: Verify extraction by checking if target paths exist
+                            logger_1.logger.archive('DEBUG: Verifying extraction results...');
+                            for (const cachePath of inputs.paths) {
+                                const absolutePath = path.isAbsolute(cachePath)
+                                    ? cachePath
+                                    : path.resolve(cachePath);
+                                const exists = fs.existsSync(absolutePath);
+                                logger_1.logger.archive(`DEBUG: Path "${absolutePath}" exists after extraction: ${exists}`);
+                                if (exists) {
+                                    try {
+                                        const stats = fs.statSync(absolutePath);
+                                        logger_1.logger.archive(`DEBUG: Path "${absolutePath}" is ${stats.isDirectory() ? 'directory' : 'file'}, size: ${stats.size || 'N/A'}`);
+                                    }
+                                    catch (statError) {
+                                        logger_1.logger.warning(`DEBUG: Failed to stat "${absolutePath}": ${statError}`, 'ARCHIVE');
+                                    }
+                                }
+                            }
                             logger_1.logger.success(`Cache restored successfully to root directory`, 'CACHE');
                             cacheProcessed = true;
                         }

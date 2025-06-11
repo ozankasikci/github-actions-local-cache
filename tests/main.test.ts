@@ -202,7 +202,8 @@ describe('main', () => {
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Verifying cache file integrity:'));
       expect(mockExecAsync).toHaveBeenCalledWith(expect.stringContaining('tar -tzf'));
-      expect(mockExecAsync).toHaveBeenCalledTimes(2);
+      // Now we have 3 calls: integrity check (tar -tzf), debug listing (tar -tzf), and extraction (tar -xzf)
+      expect(mockExecAsync).toHaveBeenCalledTimes(3);
       expect(mockExecAsync).toHaveBeenLastCalledWith(expect.stringContaining('tar -xzf'));
     });
 
