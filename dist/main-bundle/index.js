@@ -384,17 +384,26 @@ async function run() {
                             catch (listError) {
                                 logger_1.logger.warning(`DEBUG: Failed to list archive contents: ${listError}`, 'ARCHIVE');
                             }
-                            // Log absolute paths where cache will be restored
+                            // Extract to current target paths (not where they were originally saved from)
                             logger_1.logger.cache('Cache will be restored to the following absolute paths:');
                             for (const cachePath of inputs.paths) {
                                 const absolutePath = path.isAbsolute(cachePath)
                                     ? cachePath
                                     : path.resolve(cachePath);
                                 logger_1.logger.cache(`  → ${absolutePath}`);
+                                const parentDir = path.dirname(absolutePath);
+                                const folderName = path.basename(absolutePath);
+                                logger_1.logger.archive(`DEBUG: Will extract "${folderName}" to parent directory: ${parentDir}`);
+                                // Ensure parent directory exists
+                                if (!fs.existsSync(parentDir)) {
+                                    logger_1.logger.archive(`DEBUG: Creating parent directory: ${parentDir}`);
+                                    fs.mkdirSync(parentDir, { recursive: true });
+                                }
+                                // Extract the cached folder to the target location
+                                const extractCommand = `tar -xzf "${cacheFile}" -C "${parentDir}"`;
+                                logger_1.logger.archive(`DEBUG: Running extraction command: ${extractCommand}`);
+                                await execAsync(extractCommand);
                             }
-                            const extractCommand = `tar -xzf "${cacheFile}" -C /`;
-                            logger_1.logger.archive(`DEBUG: Running extraction command: ${extractCommand}`);
-                            await execAsync(extractCommand);
                             // DEBUG: Verify extraction by checking if target paths exist
                             logger_1.logger.archive('DEBUG: Verifying extraction results...');
                             for (const cachePath of inputs.paths) {

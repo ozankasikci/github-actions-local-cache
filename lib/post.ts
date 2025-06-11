@@ -102,20 +102,26 @@ async function run(): Promise<void> {
       logger.archive('Paths will be archived with relative paths from root /');
 
       try {
-        // Create tar.gz archive to temporary file first
-        // Use -C flag to change to root directory before archiving
-        // This ensures paths are stored relative to root
+        // Create tar.gz archive with only folder contents, not path structure
         logger.archive('DEBUG: Processing paths for tar archive:');
-        const pathsStr = existingPaths
-          .map((p) => {
-            // Convert to absolute path and remove leading slash
-            const absolutePath = path.isAbsolute(p) ? p : path.resolve(p);
-            const strippedPath = absolutePath.substring(1); // Remove leading /
-            logger.archive(`DEBUG: Original path: "${p}" -> Absolute: "${absolutePath}" -> Stripped: "${strippedPath}"`);
-            return `"${strippedPath}"`;
-          })
-          .join(' ');
-        const tarCommand = `tar -czf "${tempFile}" -C / ${pathsStr}`;
+        
+        // For each path, we want to archive only its contents, not the full path structure
+        // This way the cache works regardless of where the folder is located later
+        const archiveCommands: string[] = [];
+        
+        for (const p of existingPaths) {
+          const absolutePath = path.isAbsolute(p) ? p : path.resolve(p);
+          const parentDir = path.dirname(absolutePath);
+          const folderName = path.basename(absolutePath);
+          
+          logger.archive(`DEBUG: Path "${p}" -> Parent: "${parentDir}" -> Folder: "${folderName}"`);
+          
+          // Use -C to change to parent directory, then archive just the folder name
+          // This stores the folder without its full path structure
+          archiveCommands.push(`-C "${parentDir}" "${folderName}"`);
+        }
+        
+        const tarCommand = `tar -czf "${tempFile}" ${archiveCommands.join(' ')}`;
 
         logger.archive(`DEBUG: Final tar command: ${tarCommand}`);
         logger.archive(`Running: ${tarCommand}`);

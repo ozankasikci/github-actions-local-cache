@@ -371,20 +371,21 @@ async function run() {
             logger_1.logger.archive(`Creating temporary cache file: ${tempFile}`);
             logger_1.logger.archive('Paths will be archived with relative paths from root /');
             try {
-                // Create tar.gz archive to temporary file first
-                // Use -C flag to change to root directory before archiving
-                // This ensures paths are stored relative to root
+                // Create tar.gz archive with only folder contents, not path structure
                 logger_1.logger.archive('DEBUG: Processing paths for tar archive:');
-                const pathsStr = existingPaths
-                    .map((p) => {
-                    // Convert to absolute path and remove leading slash
+                // For each path, we want to archive only its contents, not the full path structure
+                // This way the cache works regardless of where the folder is located later
+                const archiveCommands = [];
+                for (const p of existingPaths) {
                     const absolutePath = path.isAbsolute(p) ? p : path.resolve(p);
-                    const strippedPath = absolutePath.substring(1); // Remove leading /
-                    logger_1.logger.archive(`DEBUG: Original path: "${p}" -> Absolute: "${absolutePath}" -> Stripped: "${strippedPath}"`);
-                    return `"${strippedPath}"`;
-                })
-                    .join(' ');
-                const tarCommand = `tar -czf "${tempFile}" -C / ${pathsStr}`;
+                    const parentDir = path.dirname(absolutePath);
+                    const folderName = path.basename(absolutePath);
+                    logger_1.logger.archive(`DEBUG: Path "${p}" -> Parent: "${parentDir}" -> Folder: "${folderName}"`);
+                    // Use -C to change to parent directory, then archive just the folder name
+                    // This stores the folder without its full path structure
+                    archiveCommands.push(`-C "${parentDir}" "${folderName}"`);
+                }
+                const tarCommand = `tar -czf "${tempFile}" ${archiveCommands.join(' ')}`;
                 logger_1.logger.archive(`DEBUG: Final tar command: ${tarCommand}`);
                 logger_1.logger.archive(`Running: ${tarCommand}`);
                 await execAsync(tarCommand);
