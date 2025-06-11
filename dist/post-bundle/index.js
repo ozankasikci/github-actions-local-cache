@@ -369,10 +369,19 @@ async function run() {
             // Create temporary file for atomic write operation
             const tempFile = `${cacheFile}.tmp.${process.pid}.${Date.now()}`;
             logger_1.logger.archive(`Creating temporary cache file: ${tempFile}`);
+            logger_1.logger.archive('Paths will be archived with relative paths from root /');
             try {
                 // Create tar.gz archive to temporary file first
-                const pathsStr = existingPaths.map((p) => `"${p}"`).join(' ');
-                const tarCommand = `tar -czf "${tempFile}" ${pathsStr}`;
+                // Use -C flag to change to root directory before archiving
+                // This ensures paths are stored relative to root
+                const pathsStr = existingPaths
+                    .map((p) => {
+                    // Convert to absolute path and remove leading slash
+                    const absolutePath = path.isAbsolute(p) ? p : path.resolve(p);
+                    return `"${absolutePath.substring(1)}"`; // Remove leading /
+                })
+                    .join(' ');
+                const tarCommand = `tar -czf "${tempFile}" -C / ${pathsStr}`;
                 logger_1.logger.archive(`Running: ${tarCommand}`);
                 await execAsync(tarCommand);
                 // Verify temporary file was created successfully

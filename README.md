@@ -129,6 +129,17 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
       ${{ runner.os }}-gradle-
 ```
 
+## Important Notes
+
+- **Caches are local to each runner**: Unlike GitHub's cache action, caches are not shared between different runners
+- **No automatic eviction**: Caches persist indefinitely (or until manually cleared)
+- **Path handling**: The action preserves the directory structure when caching:
+  - Absolute paths (e.g., `/path/to/dir`) are archived relative to root and restored to the same location
+  - Relative paths (e.g., `node_modules`) are resolved to absolute paths before caching
+  - This ensures caches work correctly regardless of where they were created
+- **Atomic operations**: Uses lock files and atomic writes to prevent corruption
+- **Integrity checks**: Automatically verifies cache integrity with checksums
+
 ## Development
 
 ### Release Process
