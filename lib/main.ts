@@ -102,9 +102,22 @@ async function run(): Promise<void> {
 
               // DEBUG: List what's actually in the tar file before extraction
               logger.archive('DEBUG: Listing tar archive contents before extraction...');
+              let isOldFormat = false;
+              let archiveContents = '';
               try {
                 const { stdout } = await execAsync(`tar -tzf "${cacheFile}" | head -20`);
+                archiveContents = stdout;
                 logger.archive(`DEBUG: Archive contents (first 20 entries):\n${stdout}`);
+                
+                // Check if this is an old format cache (contains full paths)
+                const firstEntry = stdout.split('\n')[0];
+                // Old format has entries like "Volumes/Samsung990PRO/..." without leading ./
+                // New format has entries like "Library/" (just the folder name)
+                if (firstEntry && firstEntry.split('/').length > 2 && !firstEntry.startsWith('./')) {
+                  // Old format detected - has multiple path components
+                  isOldFormat = true;
+                  logger.archive('DEBUG: Detected old cache format with full paths');
+                }
               } catch (listError) {
                 logger.warning(`DEBUG: Failed to list archive contents: ${listError}`, 'ARCHIVE');
               }
@@ -132,7 +145,26 @@ async function run(): Promise<void> {
                 }
 
                 // Extract the cached folder to the target location
-                const extractCommand = `tar -xzf "${cacheFile}" -C "${parentDir}"`;
+                let extractCommand: string;
+                if (isOldFormat) {
+                  // For old format, we need to extract and strip the leading path components
+                  // to get just the Library folder content
+                  logger.archive('DEBUG: Using strip-components for old format cache');
+                  // Count the number of path components to strip
+                  // e.g., "Volumes/Samsung990PRO/.../Library/" -> need to strip everything before Library
+                  const pathInArchive = archiveContents.split('\n').find(line => line.endsWith(`${folderName}/`));
+                  if (pathInArchive) {
+                    const componentsToStrip = pathInArchive.split('/').length - 2; // -2 for Library/ itself
+                    extractCommand = `tar -xzf "${cacheFile}" --strip-components=${componentsToStrip} -C "${parentDir}"`;
+                  } else {
+                    // Fallback to regular extraction
+                    extractCommand = `tar -xzf "${cacheFile}" -C "${parentDir}"`;
+                  }
+                } else {
+                  // New format - just extract normally
+                  extractCommand = `tar -xzf "${cacheFile}" -C "${parentDir}"`;
+                }
+                
                 logger.archive(`DEBUG: Running extraction command: ${extractCommand}`);
                 await execAsync(extractCommand);
               }

@@ -401,8 +401,9 @@ describe('content-only caching integration', () => {
       await runMain();
 
       // Verify the system doesn't crash and attempts extraction
+      // Old format uses strip-components, so check for that
       expect(mockChildProcess.exec).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*\.tar\.gz" -C "\/project"/),
+        expect.stringMatching(/tar -xzf ".*\.tar\.gz" --strip-components=\d+ -C "\/project"/),
         expect.any(Function)
       );
       
