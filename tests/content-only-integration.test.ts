@@ -3,16 +3,10 @@ import { run as runPost } from '../lib/post';
 import { run as runMain } from '../lib/main';
 import { mockCore, mockFs, mockChildProcess, mockCrypto, resetMocks } from './setup';
 
-// Mock util.promisify
-const mockExecAsync = jest.fn() as jest.MockedFunction<any>;
-jest.mock('util', () => ({
-  promisify: () => mockExecAsync
-}));
 
 describe('content-only caching integration', () => {
   beforeEach(() => {
     resetMocks();
-    mockExecAsync.mockReset();
   });
 
   describe('full save and restore cycle', () => {
@@ -42,20 +36,19 @@ describe('content-only caching integration', () => {
         return { isDirectory: () => true, size: 4096 };
       });
 
-      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
       mockFs.promises.rename.mockResolvedValue(undefined);
 
       // Execute save
       await runPost();
 
       // Verify save used content-only archiving
-      expect(mockExecAsync).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -czf ".*\.tmp\..*" -C "\/original\/unity\/project" "Library"/)
+      expect(mockChildProcess.exec).toHaveBeenCalledWith(
+        expect.stringMatching(/tar -czf ".*\.tmp\..*" -C "\/original\/unity\/project" "Library"/),
+        expect.any(Function)
       );
 
       // Reset mocks for restore phase
-      mockExecAsync.mockReset();
-      mockCore.getInput.mockReset();
+        mockCore.getInput.mockReset();
       mockCore.getState.mockReset();
 
       // === RESTORE PHASE ===
@@ -95,13 +88,15 @@ describe('content-only caching integration', () => {
       mockFs.unlinkSync.mockImplementation(() => {});
 
       let callCount = 0;
-      mockExecAsync.mockImplementation(async () => {
+      mockChildProcess.exec.mockImplementation((...args: any[]) => {
+        const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { stdout: 'Library/\nLibrary/Artifacts/\nLibrary/ScriptAssemblies/', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Library/\nLibrary/Artifacts/\nLibrary/ScriptAssemblies/', stderr: '' }));
         } else {
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       // Execute restore
@@ -109,8 +104,9 @@ describe('content-only caching integration', () => {
 
       // Verify restore created parent directory and extracted to new location
       expect(mockFs.mkdirSync).toHaveBeenCalledWith('/new/different/location', { recursive: true });
-      expect(mockExecAsync).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*\.tar\.gz" -C "\/new\/different\/location"/)
+      expect(mockChildProcess.exec).toHaveBeenCalledWith(
+        expect.stringMatching(/tar -xzf ".*\.tar\.gz" -C "\/new\/different\/location"/),
+        expect.any(Function)
       );
     });
 
@@ -141,19 +137,18 @@ describe('content-only caching integration', () => {
         return { isDirectory: () => true, size: 4096 };
       });
 
-      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
       mockFs.promises.rename.mockResolvedValue(undefined);
 
       await runPost();
 
       // Verify save extracted only the Library folder from the complex path
-      expect(mockExecAsync).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -czf ".*\.tmp\..*" -C ".*\/sticker-puzzle" "Library"/)
+      expect(mockChildProcess.exec).toHaveBeenCalledWith(
+        expect.stringMatching(/tar -czf ".*\.tmp\..*" -C ".*\/sticker-puzzle" "Library"/),
+        expect.any(Function)
       );
 
       // Reset for restore phase
-      mockExecAsync.mockReset();
-      mockCore.getInput.mockReset();
+        mockCore.getInput.mockReset();
       mockCore.getState.mockReset();
 
       // === RESTORE PHASE (Build 2 with different path) ===
@@ -196,24 +191,27 @@ describe('content-only caching integration', () => {
       mockFs.unlinkSync.mockImplementation(() => {});
 
       let callCount = 0;
-      mockExecAsync.mockImplementation(async () => {
+      mockChildProcess.exec.mockImplementation((...args: any[]) => {
+        const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { 
+          setImmediate(() => callback(null, { 
             stdout: 'Library/\nLibrary/Artifacts/\nLibrary/ScriptAssemblies/\nLibrary/PlayerDataCache/', 
             stderr: '' 
-          };
+          }));
         } else {
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
 
       // Verify restore worked despite completely different paths
       expect(mockFs.mkdirSync).toHaveBeenCalledWith(build2ProjectDir, { recursive: true });
-      expect(mockExecAsync).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*\.tar\.gz" -C ".*\/sticker-puzzle"/)
+      expect(mockChildProcess.exec).toHaveBeenCalledWith(
+        expect.stringMatching(/tar -xzf ".*\.tar\.gz" -C ".*\/sticker-puzzle"/),
+        expect.any(Function)
       );
       
       // Verify cache hit was reported
@@ -249,19 +247,18 @@ describe('content-only caching integration', () => {
         return { isDirectory: () => true, size: 4096 };
       });
 
-      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
       mockFs.promises.rename.mockResolvedValue(undefined);
 
       await runPost();
 
       // Verify save command includes all folders
-      expect(mockExecAsync).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -czf ".*\.tmp\..*" -C "\/original\/project" "Library" -C "\/original\/project" "node_modules" -C "\/original\/project" "\.cache"/)
+      expect(mockChildProcess.exec).toHaveBeenCalledWith(
+        expect.stringMatching(/tar -czf ".*\.tmp\..*" -C "\/original\/project" "Library" -C "\/original\/project" "node_modules" -C "\/original\/project" "\.cache"/),
+        expect.any(Function)
       );
 
       // Reset for restore
-      mockExecAsync.mockReset();
-      mockCore.getInput.mockReset();
+        mockCore.getInput.mockReset();
       mockCore.getState.mockReset();
 
       // === RESTORE PHASE ===
@@ -304,24 +301,27 @@ describe('content-only caching integration', () => {
       mockFs.unlinkSync.mockImplementation(() => {});
 
       let callCount = 0;
-      mockExecAsync.mockImplementation(async () => {
+      mockChildProcess.exec.mockImplementation((...args: any[]) => {
+        const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { stdout: 'Library/\nnode_modules/\n.cache/', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Library/\nnode_modules/\n.cache/', stderr: '' }));
         } else {
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
 
       // Verify all three extraction commands were called
-      expect(mockExecAsync).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*\.tar\.gz" -C "\/new\/location"/)
+      expect(mockChildProcess.exec).toHaveBeenCalledWith(
+        expect.stringMatching(/tar -xzf ".*\.tar\.gz" -C "\/new\/location"/),
+        expect.any(Function)
       );
       
       // Should be called 3 times for extraction (once per path) + 2 for integrity/debug
-      expect(mockExecAsync).toHaveBeenCalledTimes(5);
+      expect(mockChildProcess.exec).toHaveBeenCalledTimes(5);
     });
   });
 
@@ -361,21 +361,24 @@ describe('content-only caching integration', () => {
       mockFs.unlinkSync.mockImplementation(() => {});
 
       let callCount = 0;
-      mockExecAsync.mockImplementation(async () => {
+      mockChildProcess.exec.mockImplementation((...args: any[]) => {
+        const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
           // Old format might have full paths
-          return { stdout: 'Volumes/old/path/to/Library/\nVolumes/old/path/to/Library/file.txt', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Volumes/old/path/to/Library/\nVolumes/old/path/to/Library/file.txt', stderr: '' }));
         } else {
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
 
       // Verify the system doesn't crash and attempts extraction
-      expect(mockExecAsync).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*\.tar\.gz" -C "\/project"/)
+      expect(mockChildProcess.exec).toHaveBeenCalledWith(
+        expect.stringMatching(/tar -xzf ".*\.tar\.gz" -C "\/project"/),
+        expect.any(Function)
       );
       
       // Verify it completes without throwing errors

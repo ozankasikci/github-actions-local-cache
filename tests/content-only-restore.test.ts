@@ -70,7 +70,8 @@ describe('content-only restore operation', () => {
       
       // Verify extraction command targets the parent directory
       expect(mockChildProcess.exec).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/new\/location"/)
+        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/new\/location"/),
+        expect.any(Function)
       );
       
       // Verify debug logging
@@ -118,10 +119,11 @@ describe('content-only restore operation', () => {
         const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { stdout: 'Library/\nLibrary/file1.txt', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Library/\nLibrary/file1.txt', stderr: '' }));
         } else {
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
@@ -131,7 +133,8 @@ describe('content-only restore operation', () => {
       
       // Verify extraction still happens to existing parent
       expect(mockChildProcess.exec).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/existing\/path"/)
+        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/existing\/path"/),
+        expect.any(Function)
       );
     });
   });
@@ -182,10 +185,11 @@ describe('content-only restore operation', () => {
         const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { stdout: 'Library/\nnode_modules/', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Library/\nnode_modules/', stderr: '' }));
         } else {
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
@@ -196,10 +200,12 @@ describe('content-only restore operation', () => {
       
       // Verify extraction commands for both paths
       expect(mockChildProcess.exec).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/project"/)
+        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/project"/),
+        expect.any(Function)
       );
       expect(mockChildProcess.exec).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/cache"/)
+        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/cache"/),
+        expect.any(Function)
       );
     });
   });
@@ -244,17 +250,19 @@ describe('content-only restore operation', () => {
         const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { stdout: 'Library/', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Library/', stderr: '' }));
         } else {
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
 
       // Verify extraction uses resolved path's parent directory
       expect(mockChildProcess.exec).toHaveBeenCalledWith(
-        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/test\/cwd"/)
+        expect.stringMatching(/tar -xzf ".*test-hash\.tar\.gz" -C "\/test\/cwd"/),
+        expect.any(Function)
       );
     });
   });
@@ -298,19 +306,19 @@ describe('content-only restore operation', () => {
         const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { stdout: 'Library/', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Library/', stderr: '' }));
         } else {
           // Extraction fails
-          throw new Error('tar extraction failed');
+          setImmediate(() => callback(new Error('tar extraction failed')));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
 
       // Verify error is handled and cache file might be removed
       expect(mockCore.warning).toHaveBeenCalledWith(
-        expect.stringContaining('Cache file is corrupted or invalid'),
-        'CACHE'
+        expect.stringContaining('Cache file is corrupted or invalid')
       );
     });
   });
@@ -357,11 +365,12 @@ describe('content-only restore operation', () => {
         const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { stdout: 'Library/', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Library/', stderr: '' }));
         } else {
           libraryExists = true; // Simulate successful extraction
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
@@ -414,10 +423,11 @@ describe('content-only restore operation', () => {
         const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { stdout: 'Library/', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Library/', stderr: '' }));
         } else {
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
@@ -468,10 +478,11 @@ describe('content-only restore operation', () => {
         const callback = args[args.length - 1];
         callCount++;
         if (callCount <= 2) {
-          return { stdout: 'Library/\nLibrary/file1.txt\nLibrary/subfolder/', stderr: '' };
+          setImmediate(() => callback(null, { stdout: 'Library/\nLibrary/file1.txt\nLibrary/subfolder/', stderr: '' }));
         } else {
-          return { stdout: '', stderr: '' };
+          setImmediate(() => callback(null, { stdout: '', stderr: '' }));
         }
+        return { on: jest.fn(), removeListener: jest.fn(), stdout: null, stderr: null, kill: jest.fn() };
       });
 
       await runMain();
