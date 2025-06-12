@@ -54,8 +54,20 @@ export const mockCrypto = {
 export const mockPath = {
   join: jest.fn((...parts: string[]) => parts.filter(p => p && p.length > 0).join('/')),
   basename: jest.fn((filePath: string) => filePath.split('/').pop() || ''),
+  dirname: jest.fn((filePath: string) => {
+    const parts = filePath.split('/');
+    parts.pop(); // Remove the last part (file/folder name)
+    const result = parts.join('/') || '/';
+    // Handle edge case where relative path resolution adds '.'
+    return result.endsWith('/.') ? result.slice(0, -2) : result;
+  }),
   isAbsolute: jest.fn((path: string) => path.startsWith('/')),
-  resolve: jest.fn((path: string) => path.startsWith('/') ? path : `/test/cwd/${path}`),
+  resolve: jest.fn((path: string) => {
+    if (path.startsWith('/')) return path;
+    // Clean up the relative path resolution
+    const resolved = `/test/cwd/${path}`;
+    return resolved.replace('/./', '/');
+  }),
 };
 
 // Mock os
@@ -98,6 +110,20 @@ export const resetMocks = (): void => {
   mockFs.promises.unlink.mockReset();
   
   mockChildProcess.exec.mockReset();
+  mockChildProcess.exec.mockImplementation((...args: any[]) => {
+    const callback = args[args.length - 1];
+    // Default implementation: simulate successful execution
+    setImmediate(() => callback(null, { stdout: '', stderr: '' }));
+    
+    // Return a mock child process object with required methods for util.promisify
+    return {
+      on: jest.fn(),
+      removeListener: jest.fn(),
+      stdout: null,
+      stderr: null,
+      kill: jest.fn()
+    };
+  });
   
   // Reset crypto mock and restore implementation
   mockCrypto.createHash.mockReset();
@@ -113,10 +139,25 @@ export const resetMocks = (): void => {
   
   mockPath.join.mockReset();
   mockPath.join.mockImplementation((...parts: string[]) => parts.filter(p => p && p.length > 0).join('/'));
+  mockPath.basename.mockReset();
+  mockPath.basename.mockImplementation((filePath: string) => filePath.split('/').pop() || '');
+  mockPath.dirname.mockReset();
+  mockPath.dirname.mockImplementation((filePath: string) => {
+    const parts = filePath.split('/');
+    parts.pop(); // Remove the last part (file/folder name)
+    const result = parts.join('/') || '/';
+    // Handle edge case where relative path resolution adds '.'
+    return result.endsWith('/.') ? result.slice(0, -2) : result;
+  });
   mockPath.isAbsolute.mockReset();
   mockPath.isAbsolute.mockImplementation((path: string) => path.startsWith('/'));
   mockPath.resolve.mockReset();
-  mockPath.resolve.mockImplementation((path: string) => path.startsWith('/') ? path : `/test/cwd/${path}`);
+  mockPath.resolve.mockImplementation((path: string) => {
+    if (path.startsWith('/')) return path;
+    // Clean up the relative path resolution
+    const resolved = `/test/cwd/${path}`;
+    return resolved.replace('/./', '/');
+  });
   
   mockOs.homedir.mockReset();
   mockOs.homedir.mockReturnValue('/home/runner');
