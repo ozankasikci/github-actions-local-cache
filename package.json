@@ -1,6 +1,6 @@
 {
   "name": "github-actions-local-cache",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "A GitHub Action for caching files locally on the runner filesystem",
   "main": "dist/main.js",
   "scripts": {

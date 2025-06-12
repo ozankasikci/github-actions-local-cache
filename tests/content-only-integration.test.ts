@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import { run as runPost } from '../lib/post';
 import { run as runMain } from '../lib/main';
-import { mockCore, mockFs, mockChildProcess, mockCrypto, resetMocks } from './setup';
+import { mockCore, mockFs, mockChildProcess, mockCrypto, resetMocks, hashCounter } from './setup';
 
 
 describe('content-only caching integration', () => {
@@ -48,12 +48,14 @@ describe('content-only caching integration', () => {
       );
 
       // Reset mocks for restore phase
-        mockCore.getInput.mockReset();
+      mockChildProcess.exec.mockReset();
+      mockCore.getInput.mockReset();
       mockCore.getState.mockReset();
+      mockFs.mkdirSync.mockReset();
 
       // === RESTORE PHASE ===
       const newPath = '/new/different/location/Library';
-      const cacheFile = '/tmp/.local-cache/mocked-hash-1.tar.gz';
+      const cacheFile = '/tmp/.local-cache/mocked-hash-2.tar.gz'; // hash counter increments during save
 
       // Setup for restore operation
       mockCore.getInput.mockImplementation((name: string) => {
@@ -66,6 +68,12 @@ describe('content-only caching integration', () => {
         }
       });
 
+      // Configure crypto mock for restore phase
+      mockCrypto.createHash.mockImplementation(() => ({
+        update: jest.fn().mockReturnThis(),
+        digest: jest.fn().mockReturnValue('mocked-hash-2')
+      }));
+
       let parentDirCreated = false;
       mockFs.existsSync.mockImplementation((path: string) => {
         if (['/tmp/.local-cache', cacheFile].includes(path)) return true;
@@ -77,6 +85,7 @@ describe('content-only caching integration', () => {
 
       mockFs.mkdirSync.mockImplementation(() => {
         parentDirCreated = true;
+        return undefined;
       });
 
       mockFs.statSync.mockImplementation((path: string) => {
@@ -148,22 +157,30 @@ describe('content-only caching integration', () => {
       );
 
       // Reset for restore phase
-        mockCore.getInput.mockReset();
+      mockChildProcess.exec.mockReset();
+      mockCore.getInput.mockReset();
       mockCore.getState.mockReset();
+      mockFs.mkdirSync.mockReset();
 
       // === RESTORE PHASE (Build 2 with different path) ===
       const build2Path = '/Volumes/Samsung990PRO/github-actions/unity-build-service-runner-1/_work/unity-build-service/unity-build-service/UnityBuildServiceProjects/OzanKasikci-682ca2fd8fcb2cb72a1d133d/Sticker-682ca3218fcb2cb72a1d137c/sticker-puzzle/Library';
-      const cacheFile = '/Users/ozankasikci/.cache/github-actions-local-cache/mocked-hash-1.tar.gz';
+      const cacheFile = '/Users/ozankasikci/.cache/github-actions-local-cache/mocked-hash-3.tar.gz'; // hash counter increments during save
 
       mockCore.getInput.mockImplementation((name: string) => {
         switch (name) {
           case 'path': return build2Path;
-          case 'key': return 'unity-library-macOS-hash123';
-          case 'restore-keys': return 'unity-library-macOS-';
+          case 'key': return 'unity-library-macOS-hash123'; // Same key as save for exact match
+          case 'restore-keys': return '';
           case 'cache-dir': return '/Users/ozankasikci/.cache/github-actions-local-cache';
           default: return '';
         }
       });
+
+      // Configure crypto mock for restore phase
+      mockCrypto.createHash.mockImplementation(() => ({
+        update: jest.fn().mockReturnThis(),
+        digest: jest.fn().mockReturnValue('mocked-hash-3')
+      }));
 
       const build2ProjectDir = '/Volumes/Samsung990PRO/github-actions/unity-build-service-runner-1/_work/unity-build-service/unity-build-service/UnityBuildServiceProjects/OzanKasikci-682ca2fd8fcb2cb72a1d133d/Sticker-682ca3218fcb2cb72a1d137c/sticker-puzzle';
       let build2ParentCreated = false;
@@ -214,8 +231,9 @@ describe('content-only caching integration', () => {
         expect.any(Function)
       );
       
-      // Verify cache hit was reported
+      // Verify cache hit was reported (exact match)
       expect(mockCore.setOutput).toHaveBeenCalledWith('cache-hit', 'true');
+      expect(mockCore.setOutput).toHaveBeenCalledWith('cache-matched-key', 'unity-library-macOS-hash123');
     });
 
     it('should handle multiple folders being cached and restored to different locations', async () => {
@@ -257,9 +275,11 @@ describe('content-only caching integration', () => {
         expect.any(Function)
       );
 
-      // Reset for restore
-        mockCore.getInput.mockReset();
+      // Reset for restore (but preserve crypto mock)
+      mockChildProcess.exec.mockReset();
+      mockCore.getInput.mockReset();
       mockCore.getState.mockReset();
+      mockFs.mkdirSync.mockReset();
 
       // === RESTORE PHASE ===
       const newPaths = [
@@ -267,7 +287,7 @@ describe('content-only caching integration', () => {
         '/new/location/node_modules', 
         '/new/location/.cache'
       ];
-      const cacheFile = '/tmp/.local-cache/mocked-hash-1.tar.gz';
+      const cacheFile = '/tmp/.local-cache/mocked-hash-5.tar.gz'; // hash counter increments during save
 
       mockCore.getInput.mockImplementation((name: string) => {
         switch (name) {
@@ -278,6 +298,12 @@ describe('content-only caching integration', () => {
           default: return '';
         }
       });
+
+      // Re-configure crypto mock for restore phase
+      mockCrypto.createHash.mockImplementation(() => ({
+        update: jest.fn().mockReturnThis(),
+        digest: jest.fn().mockReturnValue('mocked-hash-5')
+      }));
 
       let newLocationCreated = false;
       mockFs.existsSync.mockImplementation((path: string) => {
@@ -301,8 +327,7 @@ describe('content-only caching integration', () => {
       mockFs.unlinkSync.mockImplementation(() => {});
 
       let callCount = 0;
-      mockChildProcess.exec.mockImplementation((...args: any[]) => {
-        const callback = args[args.length - 1];
+      mockChildProcess.exec.mockImplementation((cmd: string, callback: any) => {
         callCount++;
         if (callCount <= 2) {
           setImmediate(() => callback(null, { stdout: 'Library/\nnode_modules/\n.cache/', stderr: '' }));
