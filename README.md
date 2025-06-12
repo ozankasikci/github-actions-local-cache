@@ -24,7 +24,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
 
 ```yaml
 - name: Cache dependencies
-  uses: ozankasikci/github-actions-local-cache@v1.5.2  # or @v1 for latest
+  uses: ozankasikci/github-actions-local-cache@v1.7.2  # or @v1 for latest
   with:
     path: |
       ~/.npm
@@ -152,7 +152,7 @@ A GitHub Action for caching files and folders locally on the runner to speed up 
    - Create a release branch with built files
    - Publish the GitHub release
 
-Users can then reference the action using the tag (e.g., `@v1.5.0`) and get the pre-built files from the release branch.
+Users can then reference the action using the tag (e.g., `@v1.7.2`) and get the pre-built files from the release branch.
 
 ## License
 
